@@ -6,7 +6,23 @@ This file provides guidance for AI assistants (Claude, etc.) working in this rep
 
 **Flowerapp** is an AI-powered plant and flower identification web app. Users upload or capture a photo of any plant, and Claude's vision API identifies it — returning the common name, scientific name, care instructions, toxicity info, and fun facts.
 
-**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision)
+**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision) · Football-Data.org API v4
+
+## Football Analytics Module
+
+The app includes a football analytics section focused on **player bookings** across Europe's top leagues. Features:
+
+- **Dashboard** (`/football`) — Today's matches, recent results, quick stats
+- **Standings** (`/football/standings`) — Live league tables for 9 European competitions
+- **Fixtures & Results** (`/football/fixtures`) — Browse upcoming fixtures and recent results by league
+- **Bookings Analytics** (`/football/bookings`) — The main focus:
+  - Player booking frequency and card-per-match rates
+  - Referee strictness ratings (Lenient → Very Strict) based on cards/match
+  - Team discipline rankings with per-match card averages
+  - Booking timing analysis (by half, by 15-minute windows)
+  - Card timeline visualizations for individual players
+
+**Data source:** [football-data.org](https://www.football-data.org) free tier (10 req/min, covers PL, Bundesliga, Serie A, La Liga, Ligue 1, Eredivisie, Primeira Liga, Championship, Champions League)
 
 ## Repository Structure
 
@@ -25,16 +41,38 @@ Flowerapp/
     │   ├── layout.tsx                 # Root layout with metadata
     │   ├── page.tsx                   # Main page (client component, app shell)
     │   ├── globals.css                # Global styles + Tailwind import
-    │   └── api/
-    │       └── identify/
-    │           └── route.ts           # POST /api/identify — Claude vision API
+    │   ├── api/
+    │   │   ├── identify/
+    │   │   │   └── route.ts           # POST /api/identify — Claude vision API
+    │   │   └── football/
+    │   │       ├── standings/route.ts  # GET — league standings proxy
+    │   │       ├── matches/route.ts   # GET — competition matches proxy
+    │   │       ├── match/route.ts     # GET — single match detail proxy
+    │   │       └── today/route.ts     # GET — today's matches proxy
+    │   └── football/
+    │       ├── layout.tsx             # Football section layout (dark theme)
+    │       ├── page.tsx               # Dashboard — today's matches, quick stats
+    │       ├── standings/page.tsx     # League standings tables
+    │       ├── fixtures/page.tsx      # Fixtures & results browser
+    │       └── bookings/page.tsx      # Booking analytics dashboard
     ├── components/
     │   ├── ImageUploader.tsx           # Photo upload/capture with drag-and-drop
     │   ├── LoadingSpinner.tsx          # Animated loading state
     │   ├── PlantResult.tsx             # Plant identification result display
-    │   └── HistoryPanel.tsx            # Recent identifications sidebar
+    │   ├── HistoryPanel.tsx            # Recent identifications sidebar
+    │   └── football/
+    │       ├── FootballNav.tsx         # Football section navigation bar
+    │       ├── LeagueSelector.tsx      # Competition picker (9 leagues)
+    │       ├── MatchCard.tsx           # Match result/fixture card
+    │       ├── StatCard.tsx            # Metric stat card with gradient
+    │       ├── BarChart.tsx            # Vertical bar chart (CSS-based)
+    │       ├── HorizontalBar.tsx       # Horizontal bar chart component
+    │       └── LoadingSkeleton.tsx     # Animated loading placeholder
     └── lib/
-        └── types.ts                   # Shared TypeScript types
+        ├── types.ts                   # Plant identification types
+        ├── football-types.ts          # Football API + analytics types
+        ├── football-api.ts            # Football-Data.org API client with caching
+        └── booking-analytics.ts       # Booking analytics engine
 ```
 
 ## Getting Started
@@ -88,8 +126,9 @@ User uploads photo
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key from https://console.anthropic.com/ |
+| `FOOTBALL_DATA_API_KEY` | Yes (for football) | Your football-data.org API key from https://www.football-data.org/ |
 
-The API key is read automatically by the `@anthropic-ai/sdk` package from the environment.
+The Anthropic API key is read automatically by the `@anthropic-ai/sdk` package. The football API key is used by `src/lib/football-api.ts`.
 
 ## Development Workflow
 

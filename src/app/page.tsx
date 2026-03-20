@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import ImageUploader from "@/components/ImageUploader";
 import PlantResult from "@/components/PlantResult";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -129,6 +130,21 @@ export default function Home() {
           onClear={() => setHistory([])}
         />
       </main>
+
+      {/* Football Analytics Banner */}
+      <div className="mt-8 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-800 p-5 text-center shadow-lg">
+        <div className="text-2xl mb-2">⚽</div>
+        <h2 className="text-lg font-bold text-white mb-1">Football Analytics</h2>
+        <p className="text-sm text-gray-400 mb-3">
+          Bookings, standings &amp; insights from top European leagues
+        </p>
+        <Link
+          href="/football"
+          className="inline-block rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-400"
+        >
+          Explore Football Analytics →
+        </Link>
+      </div>
 
       {/* Footer */}
       <footer className="mt-12 text-center text-xs text-gray-400">
