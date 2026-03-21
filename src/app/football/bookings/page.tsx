@@ -421,7 +421,7 @@ function PredictionsTab({ competition }: { competition: string }) {
 
                   {pred.playerRisks.length === 0 && (
                     <div className="text-xs text-gray-500 italic">
-                      Upload a player stats CSV in the Player Cards tab to see individual booking risk predictions
+                      Player card data loading from Transfermarkt — revisit shortly to see individual booking risk predictions
                     </div>
                   )}
                 </div>
@@ -943,19 +943,28 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
   const [playerData, setPlayerData] = useState<PlayerStats[]>(players);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const [autoFetching, setAutoFetching] = useState(false);
+  const [autoFetching, setAutoFetching] = useState(true);
+  const [dataSource, setDataSource] = useState<string | null>(null);
 
   // Auto-fetch player data from Transfermarkt via Apify on load
   useEffect(() => {
     setAutoFetching(true);
+    setDataSource(null);
     fetch(`/api/football/apify-players?competition=${competition}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.players && data.players.length > 0) {
           setPlayerData(data.players);
           if (data.source === "apify") {
-            setUploadStatus(`Auto-loaded ${data.apifyCount} players from Transfermarkt`);
+            setDataSource(`Transfermarkt · ${data.apifyCount} players`);
+          } else if (data.source === "cache") {
+            setDataSource(`Transfermarkt (cached ${data.cacheAge}m ago) · ${data.count} players`);
+          } else {
+            setDataSource(`${data.count} players loaded`);
           }
+        } else if (data.error) {
+          setDataSource(null);
+          setUploadStatus(`Auto-fetch unavailable: ${data.error}`);
         }
       })
       .catch(() => {
@@ -965,6 +974,7 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
           .then((data) => {
             if (data.players && data.players.length > 0) {
               setPlayerData(data.players);
+              setDataSource(`${data.players.length} players (from uploaded CSV)`);
             }
           })
           .catch(() => {});
@@ -1006,7 +1016,15 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-lg font-semibold">Player Card Profiles</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Player Card Profiles</h2>
+          {dataSource && (
+            <p className="text-emerald-400/60 text-[11px] mt-0.5 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400/60" />
+              {dataSource}
+            </p>
+          )}
+        </div>
         <div>
           <input
             type="file"
@@ -1018,16 +1036,16 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-400 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-white/30 hover:text-white/60 border border-white/[0.06] hover:border-white/[0.12] rounded-lg text-[11px] font-medium transition-all disabled:opacity-50"
           >
-            {uploading ? "Uploading..." : "Upload Player CSV"}
+            {uploading ? "Uploading..." : "Upload CSV"}
           </button>
         </div>
       </div>
 
       {uploadStatus && (
         <div className={`text-sm rounded-xl p-3 ${
-          uploadStatus.startsWith("Error") ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+          uploadStatus.startsWith("Error") || uploadStatus.startsWith("Auto-fetch unavailable") ? "bg-yellow-500/10 text-yellow-400" : "bg-emerald-500/10 text-emerald-400"
         }`}>
           {uploadStatus}
         </div>
