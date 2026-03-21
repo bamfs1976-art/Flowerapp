@@ -11,7 +11,9 @@ import type {
   PredictionFactor,
   HeadToHeadRecord,
   PlayerBookingRisk,
+  ConfirmedReferee,
 } from "./football-types";
+import { findRefereeForFixture } from "./referee-assignments";
 
 export function analyzeBookings(
   matches: MatchData[],
@@ -563,6 +565,51 @@ export function generatePredictions(
       });
     }
 
+    // ── Factor 6: Confirmed referee assignment (weight: 25%) ──
+    const assignment = findRefereeForFixture(fixture.homeTeam, fixture.awayTeam);
+    let confirmedReferee: ConfirmedReferee | undefined;
+
+    if (assignment) {
+      // Find this referee's stats from our analytics
+      const refStats = analytics.refereeStats.find((r) => {
+        const rNorm = r.name.toLowerCase();
+        const aNorm = assignment.referee.toLowerCase();
+        // Match on last name or full name
+        return rNorm === aNorm ||
+          rNorm.includes(aNorm) ||
+          aNorm.includes(rNorm.split(" ").pop() || "") ||
+          rNorm.includes(aNorm.split(" ").pop() || "");
+      });
+
+      confirmedReferee = {
+        name: assignment.referee,
+        matchweek: assignment.matchweek,
+        cardsPerMatch: refStats?.cardsPerMatch,
+        strictnessRating: refStats?.strictnessRating,
+        totalMatches: refStats?.matchesOfficiated,
+      };
+
+      if (refStats && refStats.matchesOfficiated >= 3) {
+        weights.push(0.25);
+        values.push(refStats.cardsPerMatch);
+        dataPoints++;
+
+        const diff = refStats.cardsPerMatch - leagueAvg;
+        factors.push({
+          label: `Referee ${assignment.referee}: ${refStats.cardsPerMatch} cards/match (${refStats.strictnessRating})`,
+          impact: diff > 0.5 ? "increases" : diff < -0.5 ? "decreases" : "neutral",
+          value: `${refStats.cardsPerMatch}/match`,
+        });
+      } else {
+        // We know the referee but don't have stats — still display as a factor
+        factors.push({
+          label: `Referee confirmed: ${assignment.referee} (no historical data)`,
+          impact: "neutral",
+          value: "confirmed",
+        });
+      }
+    }
+
     // ── Compute weighted prediction ──
     let expectedCards: number;
     if (weights.length > 0) {
@@ -628,6 +675,7 @@ export function generatePredictions(
       factors,
       headToHead: h2h,
       playerRisks,
+      confirmedReferee,
     };
   }).sort((a, b) => b.expectedCards - a.expectedCards);
 }

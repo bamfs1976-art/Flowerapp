@@ -122,6 +122,7 @@ function PredictionsTab({ competition }: { competition: string }) {
     fixtureCount: number;
     matchesAnalyzed: number;
     hasPlayerData: boolean;
+    hasRefereeAssignments: boolean;
     leagueAvgCards: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,12 +191,15 @@ function PredictionsTab({ competition }: { competition: string }) {
           </p>
         </div>
         {meta && (
-          <div className="flex gap-4 text-xs text-gray-500">
+          <div className="flex gap-3 flex-wrap text-[11px] text-white/30">
             <span>{meta.fixtureCount} fixtures</span>
             <span>{meta.matchesAnalyzed} matches analyzed</span>
             <span>Avg: {meta.leagueAvgCards} cards/match</span>
+            {meta.hasRefereeAssignments && (
+              <span className="text-purple-400">Referee intel active</span>
+            )}
             {!meta.hasPlayerData && (
-              <span className="text-yellow-500">Upload player CSV for player-level risks</span>
+              <span className="text-yellow-400/60">Upload player CSV for player-level risks</span>
             )}
           </div>
         )}
@@ -258,8 +262,23 @@ function PredictionsTab({ competition }: { competition: string }) {
                     <div className="text-white font-medium truncate">
                       {pred.fixture.homeTeam} vs {pred.fixture.awayTeam}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {pred.fixture.date} {pred.fixture.time && `• ${pred.fixture.time}`} • {pred.fixture.league}
+                    <div className="text-[11px] text-white/30 flex items-center gap-1.5 flex-wrap">
+                      <span>{pred.fixture.date} {pred.fixture.time && `\u00b7 ${pred.fixture.time}`} \u00b7 {pred.fixture.league}</span>
+                      {pred.confirmedReferee && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-500/[0.12] text-purple-400 text-[10px] font-semibold">
+                          <span className="opacity-70">REF</span> {pred.confirmedReferee.name}
+                          {pred.confirmedReferee.strictnessRating && (
+                            <span className={`ml-0.5 ${
+                              pred.confirmedReferee.strictnessRating === "Very Strict" ? "text-red-400" :
+                              pred.confirmedReferee.strictnessRating === "Strict" ? "text-yellow-400" :
+                              pred.confirmedReferee.strictnessRating === "Moderate" ? "text-blue-400" :
+                              "text-emerald-400"
+                            }`}>
+                              ({pred.confirmedReferee.strictnessRating})
+                            </span>
+                          )}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -285,7 +304,47 @@ function PredictionsTab({ competition }: { competition: string }) {
 
               {/* Expanded details */}
               {isExpanded && (
-                <div className="px-4 pb-4 border-t border-gray-800/50 pt-4 space-y-4">
+                <div className="px-4 pb-4 border-t border-white/[0.04] pt-4 space-y-4">
+                  {/* Confirmed referee profile */}
+                  {pred.confirmedReferee && pred.confirmedReferee.cardsPerMatch && (
+                    <div className="glass-card rounded-xl p-3.5">
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <span className="text-sm">👨‍⚖️</span>
+                        <h4 className="text-[12px] uppercase text-purple-400 font-semibold tracking-wide">
+                          Confirmed Referee
+                        </h4>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[15px] font-semibold text-white/90">{pred.confirmedReferee.name}</div>
+                          <div className="text-[11px] text-white/30 mt-0.5">
+                            {pred.confirmedReferee.totalMatches} matches this season
+                            {pred.confirmedReferee.matchweek && ` \u00b7 MW${pred.confirmedReferee.matchweek}`}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-yellow-400">{pred.confirmedReferee.cardsPerMatch}</div>
+                            <div className="text-[9px] text-white/25 uppercase tracking-wider">Cards/Match</div>
+                          </div>
+                          {pred.confirmedReferee.strictnessRating && (
+                            <span className={`text-[11px] px-2 py-1 rounded-lg font-semibold ${
+                              pred.confirmedReferee.strictnessRating === "Very Strict"
+                                ? "bg-red-500/[0.12] text-red-400"
+                                : pred.confirmedReferee.strictnessRating === "Strict"
+                                ? "bg-yellow-500/[0.12] text-yellow-400"
+                                : pred.confirmedReferee.strictnessRating === "Moderate"
+                                ? "bg-blue-500/[0.12] text-blue-400"
+                                : "bg-emerald-500/[0.12] text-emerald-400"
+                            }`}>
+                              {pred.confirmedReferee.strictnessRating}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Prediction factors */}
                   <div>
                     <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2">Prediction Factors</h4>
@@ -360,11 +419,12 @@ function PredictionsTab({ competition }: { competition: string }) {
 
       {/* Methodology note */}
       <div className="glass-card rounded-2xl p-4 text-[11px] text-white/30">
-        <span className="font-semibold text-gray-400">How predictions work: </span>
-        Predictions combine team discipline profiles (home/away specific card rates), head-to-head
-        history, seasonal card trends, and combined foul rates. Player-level risks factor in individual
-        card frequency, position risk, opponent fouling patterns, and minutes-per-card efficiency.
-        Confidence reflects data availability across these dimensions.
+        <span className="font-semibold text-white/40">How predictions work: </span>
+        Predictions combine team discipline profiles (home/away card rates), confirmed referee
+        strictness data, head-to-head history, seasonal card trends, and combined foul rates.
+        Referee assignments are sourced from official PL match officials announcements — when a
+        strict referee is confirmed, predicted card counts adjust accordingly. Player-level risks
+        factor in individual card frequency, position risk, and minutes-per-card efficiency.
       </div>
     </div>
   );

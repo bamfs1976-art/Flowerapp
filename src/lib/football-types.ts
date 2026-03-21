@@ -194,6 +194,14 @@ export interface FixtureData {
 
 // ── Match booking prediction ──
 
+export interface ConfirmedReferee {
+  name: string;
+  matchweek?: number;
+  cardsPerMatch?: number;
+  strictnessRating?: "Lenient" | "Moderate" | "Strict" | "Very Strict";
+  totalMatches?: number;
+}
+
 export interface MatchPrediction {
   fixture: FixtureData;
   expectedCards: number;
@@ -203,6 +211,7 @@ export interface MatchPrediction {
   factors: PredictionFactor[];
   headToHead: HeadToHeadRecord | null;
   playerRisks: PlayerBookingRisk[];
+  confirmedReferee?: ConfirmedReferee;
 }
 
 export interface PredictionFactor {
