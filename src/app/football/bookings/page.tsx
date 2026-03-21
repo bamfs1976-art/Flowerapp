@@ -16,6 +16,7 @@ import StatCard from "@/components/football/StatCard";
 import BarChart from "@/components/football/BarChart";
 import HorizontalBar from "@/components/football/HorizontalBar";
 import LoadingSkeleton from "@/components/football/LoadingSkeleton";
+import { fetchPlayersFromApify } from "@/lib/apify-client";
 
 type Tab = "predictions" | "overview" | "referees" | "teams" | "players" | "matches";
 
@@ -133,11 +134,11 @@ function PredictionsTab({ competition }: { competition: string }) {
     setLoading(true);
     setError(null);
 
-    // Trigger auto-fetch of player data from Apify first, then load predictions
+    // Fetch player data from Apify (client-side), then load predictions
     const loadPredictions = async () => {
-      // Pre-fetch player data from Apify (populates the server-side player store)
+      // Pre-fetch player data (populates the server-side player store via POST)
       try {
-        await fetch(`/api/football/apify-players?competition=${competition}`);
+        await fetchPlayersFromApify(competition);
       } catch {
         // Non-critical — predictions still work without player data
       }
@@ -946,39 +947,26 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
   const [autoFetching, setAutoFetching] = useState(true);
   const [dataSource, setDataSource] = useState<string | null>(null);
 
-  // Auto-fetch player data from Transfermarkt via Apify on load
+  // Auto-fetch player data from Transfermarkt via Apify (client-side)
   useEffect(() => {
     setAutoFetching(true);
     setDataSource(null);
-    fetch(`/api/football/apify-players?competition=${competition}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.players && data.players.length > 0) {
-          setPlayerData(data.players);
-          if (data.source === "apify") {
-            setDataSource(`Transfermarkt · ${data.apifyCount} players`);
-          } else if (data.source === "cache") {
-            setDataSource(`Transfermarkt (cached ${data.cacheAge}m ago) · ${data.count} players`);
-          } else {
-            setDataSource(`${data.count} players loaded`);
+    fetchPlayersFromApify(competition)
+      .then((result) => {
+        if (result.count > 0) {
+          setPlayerData(result.players);
+          if (result.source === "apify") {
+            setDataSource(`Transfermarkt · ${result.count} players`);
+          } else if (result.source === "cache") {
+            setDataSource(`Transfermarkt (cached) · ${result.count} players`);
+          } else if (result.source === "server") {
+            setDataSource(`${result.count} players loaded`);
           }
-        } else if (data.error) {
-          setDataSource(null);
-          setUploadStatus(`Auto-fetch unavailable: ${data.error}`);
+        } else if (result.error) {
+          setUploadStatus(`Auto-fetch unavailable: ${result.error}`);
         }
       })
-      .catch(() => {
-        // Fallback to existing player store
-        fetch("/api/football/players")
-          .then((r) => r.json())
-          .then((data) => {
-            if (data.players && data.players.length > 0) {
-              setPlayerData(data.players);
-              setDataSource(`${data.players.length} players (from uploaded CSV)`);
-            }
-          })
-          .catch(() => {});
-      })
+      .catch(() => {})
       .finally(() => setAutoFetching(false));
   }, [competition]);
 

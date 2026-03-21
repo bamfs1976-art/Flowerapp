@@ -6,15 +6,25 @@ export async function GET() {
   return NextResponse.json({ players: getPlayerStats() });
 }
 
-// Accept CSV upload for player stats (Kaggle / FBref data)
+// Accept CSV upload or JSON player array
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const csvText = body.csv as string;
 
+    // JSON player array (from Apify client-side fetch)
+    if (Array.isArray(body.players)) {
+      setPlayerStats(body.players);
+      return NextResponse.json({
+        message: `Loaded ${body.players.length} players`,
+        count: body.players.length,
+      });
+    }
+
+    // CSV text upload (manual file upload)
+    const csvText = body.csv as string;
     if (!csvText) {
       return NextResponse.json(
-        { error: "CSV data required in request body as { csv: '...' }" },
+        { error: "Provide { csv: '...' } or { players: [...] }" },
         { status: 400 }
       );
     }
@@ -27,7 +37,7 @@ export async function POST(request: NextRequest) {
       count: players.length,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to parse player CSV";
+    const message = error instanceof Error ? error.message : "Failed to parse player data";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
