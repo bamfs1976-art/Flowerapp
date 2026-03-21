@@ -66,10 +66,10 @@ export default function FixturesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-[24px] font-bold tracking-tight mb-1">Fixtures & Results</h1>
-          <p className="text-white/35 text-[13px]">
+          <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight mb-0.5 sm:mb-1">Fixtures & Results</h1>
+          <p className="text-white/35 text-[12px] sm:text-[13px]">
             Browse match results and upcoming fixtures
           </p>
         </div>
@@ -78,20 +78,20 @@ export default function FixturesPage() {
         <div className="flex bg-white/[0.04] rounded-xl p-1">
           <button
             onClick={() => setViewMode("results")}
-            className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+            className={`px-3.5 sm:px-4 py-2 sm:py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
               viewMode === "results"
                 ? "bg-white/[0.1] text-white shadow-sm"
-                : "text-white/40 hover:text-white/70"
+                : "text-white/40 active:text-white/70"
             }`}
           >
             Results
           </button>
           <button
             onClick={() => setViewMode("upcoming")}
-            className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+            className={`px-3.5 sm:px-4 py-2 sm:py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
               viewMode === "upcoming"
                 ? "bg-white/[0.1] text-white shadow-sm"
-                : "text-white/40 hover:text-white/70"
+                : "text-white/40 active:text-white/70"
             }`}
           >
             Upcoming

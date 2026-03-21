@@ -51,29 +51,29 @@ export default function FootballDashboard() {
   const totalCards = recentMatches.reduce((s, m) => s + m.totalCards, 0);
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/[0.06] p-8 md:p-10">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/[0.06] p-5 sm:p-8 md:p-10">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.08] via-transparent to-blue-500/[0.04]" />
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/[0.06] rounded-full blur-[100px]" />
         <div className="relative z-10">
-          <h1 className="text-[32px] md:text-[38px] font-bold tracking-tight leading-tight mb-3">
+          <h1 className="text-[26px] sm:text-[32px] md:text-[38px] font-bold tracking-tight leading-tight mb-2 sm:mb-3">
             Football <span className="text-emerald-400">Analytics</span>
           </h1>
-          <p className="text-white/40 max-w-lg text-[15px] leading-relaxed">
+          <p className="text-white/40 max-w-lg text-[13px] sm:text-[15px] leading-relaxed">
             Standings, fixtures, and deep booking analytics across Europe&apos;s top
             leagues. Powered by CSV data — no API key needed.
           </p>
-          <div className="flex gap-3 mt-7">
+          <div className="flex gap-2.5 sm:gap-3 mt-5 sm:mt-7">
             <Link
               href="/football/bookings"
-              className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl text-[14px] font-semibold hover:bg-emerald-400 transition-all duration-200 shadow-lg shadow-emerald-500/20"
+              className="px-4 sm:px-5 py-2.5 bg-emerald-500 text-white rounded-xl text-[13px] sm:text-[14px] font-semibold active:bg-emerald-600 hover:bg-emerald-400 transition-all duration-200 shadow-lg shadow-emerald-500/20"
             >
               Booking Predictions
             </Link>
             <Link
               href="/football/standings"
-              className="px-5 py-2.5 bg-white/[0.06] text-white/70 rounded-xl text-[14px] font-semibold hover:bg-white/[0.1] hover:text-white transition-all duration-200"
+              className="px-4 sm:px-5 py-2.5 bg-white/[0.06] text-white/70 rounded-xl text-[13px] sm:text-[14px] font-semibold active:bg-white/[0.12] hover:bg-white/[0.1] hover:text-white transition-all duration-200"
             >
               View Standings
             </Link>
@@ -88,7 +88,7 @@ export default function FootballDashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger-children">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 stagger-children">
         <StatCard
           label="Matches Loaded"
           value={totalMatches}
@@ -122,10 +122,10 @@ export default function FootballDashboard() {
       {loading ? (
         <LoadingSkeleton rows={6} />
       ) : (
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
           {/* Recent results */}
           <div>
-            <h2 className="text-[15px] font-semibold mb-4 text-white/80 tracking-tight">
+            <h2 className="text-[14px] sm:text-[15px] font-semibold mb-3 sm:mb-4 text-white/80 tracking-tight">
               Latest Results
             </h2>
             {recentMatches.length > 0 ? (

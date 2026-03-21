@@ -15,16 +15,16 @@ export default function FootballNav() {
 
   return (
     <nav className="sticky top-0 z-50 glass border-b border-white/[0.06]">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex items-center justify-between h-14">
-          <Link href="/football" className="flex items-center gap-2.5 group">
-            <span className="text-xl transition-transform duration-200 group-hover:scale-110">⚽</span>
-            <span className="text-[15px] font-semibold tracking-tight text-white/90">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-12 sm:h-14">
+          <Link href="/football" className="flex items-center gap-2 sm:gap-2.5 group">
+            <span className="text-lg sm:text-xl transition-transform duration-200 group-hover:scale-110">⚽</span>
+            <span className="text-[14px] sm:text-[15px] font-semibold tracking-tight text-white/90">
               Football<span className="text-emerald-400">Analytics</span>
             </span>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop + iPad landscape nav */}
           <div className="hidden md:flex items-center gap-0.5 bg-white/[0.04] rounded-xl p-1">
             {navItems.map((item) => {
               const isActive =
@@ -47,7 +47,7 @@ export default function FootballNav() {
             })}
           </div>
 
-          {/* Mobile nav */}
+          {/* Mobile + iPad portrait nav — show labels on sm, icons only on xs */}
           <div className="flex md:hidden items-center gap-0.5 bg-white/[0.04] rounded-xl p-1">
             {navItems.map((item) => {
               const isActive =
@@ -57,14 +57,15 @@ export default function FootballNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`p-2 rounded-lg text-sm transition-all duration-200 ${
+                  className={`flex items-center gap-1 px-2.5 sm:px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     isActive
                       ? "bg-white/[0.1] text-white"
-                      : "text-white/40 hover:text-white/70"
+                      : "text-white/40 active:text-white/70"
                   }`}
                   title={item.label}
                 >
-                  {item.icon}
+                  <span>{item.icon}</span>
+                  <span className="hidden sm:inline text-[12px]">{item.label}</span>
                 </Link>
               );
             })}

@@ -71,7 +71,7 @@ export default function BookingsPage() {
       <LeagueSelector selected={competition} onChange={setCompetition} showAll />
 
       {/* Tabs */}
-      <div className="flex gap-0.5 bg-white/[0.04] rounded-xl p-1 overflow-x-auto">
+      <div className="flex gap-0.5 bg-white/[0.04] rounded-xl p-1 overflow-x-auto scroll-touch -mx-4 px-4 sm:mx-0 sm:px-0">
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -206,7 +206,7 @@ function PredictionsTab({ competition }: { competition: string }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         <StatCard
           label="Very High Risk"
           value={predictions.filter((p) => p.riskRating === "Very High").length}
@@ -251,12 +251,12 @@ function PredictionsTab({ competition }: { competition: string }) {
               {/* Main row */}
               <button
                 onClick={() => setExpandedMatch(isExpanded ? null : pred.fixture.id)}
-                className="w-full px-4 py-4 flex items-center justify-between gap-4 text-left"
+                className="w-full px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-4 text-left"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="flex-shrink-0 text-center">
-                    <div className="text-2xl font-bold text-white">{pred.expectedCards}</div>
-                    <div className="text-[10px] text-gray-500 uppercase">Cards</div>
+                    <div className="text-xl sm:text-2xl font-bold text-white">{pred.expectedCards}</div>
+                    <div className="text-[9px] sm:text-[10px] text-gray-500 uppercase">Cards</div>
                   </div>
                   <div className="min-w-0">
                     <div className="text-white font-medium truncate">
@@ -488,7 +488,7 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
   return (
     <div className="space-y-6">
       {/* Key stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <StatCard
           label="Matches Analyzed"
           value={analytics.totalMatchesAnalyzed}
@@ -516,7 +516,7 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
       </div>
 
       {/* Second row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-4">
         <StatCard
           label="Avg Fouls/Match"
           value={analytics.averageFoulsPerMatch}
@@ -704,7 +704,7 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
         <h3 className="font-semibold text-yellow-400 mb-3">
           Booking Likelihood Factors
         </h3>
-        <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-400">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[13px] sm:text-sm text-gray-400">
           <div>
             <div className="text-white font-medium mb-1">Referee Impact</div>
             The strictest referees average {analytics.refereeStats[0]?.cardsPerMatch || "N/A"} cards/match
@@ -738,7 +738,7 @@ function RefereesTab({ referees }: { referees: RefereeStats[] }) {
       <h2 className="text-lg font-semibold">Referee Strictness Analysis</h2>
 
       {/* Strictness distribution */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
         {(["Lenient", "Moderate", "Strict", "Very Strict"] as const).map((rating) => {
           const count = qualified.filter((r) => r.strictnessRating === rating).length;
           const colors = {
@@ -855,9 +855,9 @@ function TeamsTab({ teams, avgCards }: { teams: TeamDiscipline[]; avgCards: numb
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Team Discipline Rankings</h2>
 
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div className="glass-card rounded-2xl overflow-hidden -mx-4 sm:mx-0">
+        <div className="overflow-x-auto scroll-touch">
+          <table className="w-full text-[12px] sm:text-sm" style={{ minWidth: 700 }}>
             <thead>
               <tr className="border-b border-white/[0.06] text-white/30 text-[11px] uppercase tracking-wider">
                 <th className="px-4 py-3 text-left w-10">#</th>
@@ -1105,45 +1105,45 @@ function HighCardMatchesTab({ matches }: { matches: MatchData[] }) {
               i < 3 ? "border-yellow-500/20" : "border-gray-800"
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <span className={`text-lg font-bold ${
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <span className={`text-base sm:text-lg font-bold flex-shrink-0 ${
                   i === 0 ? "text-red-400" : i < 3 ? "text-yellow-400" : "text-gray-500"
                 }`}>
                   #{i + 1}
                 </span>
-                <div>
-                  <div className="text-white font-medium">
+                <div className="min-w-0">
+                  <div className="text-white font-medium text-[13px] sm:text-base truncate">
                     {match.homeTeam} {match.ftHomeGoals} - {match.ftAwayGoals} {match.awayTeam}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {match.date} • {match.league} • Ref: {match.referee}
+                  <div className="text-[11px] sm:text-xs text-gray-500 truncate">
+                    {match.date} \u00b7 {match.league} \u00b7 {match.referee}
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold text-yellow-400">
+              <div className="text-right flex-shrink-0">
+                <div className="text-xl sm:text-2xl font-bold text-yellow-400">
                   {match.totalCards}
                 </div>
-                <div className="text-xs text-gray-500">total cards</div>
+                <div className="text-[10px] sm:text-xs text-gray-500">total cards</div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-xs">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-xs">
               <div className="bg-gray-800/50 rounded-lg p-2">
-                <div className="text-gray-500 mb-1">{match.homeTeam}</div>
-                <div className="flex gap-3">
+                <div className="text-gray-500 mb-1 truncate">{match.homeTeam}</div>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <span className="text-yellow-400">🟨 {match.homeYellows}</span>
                   <span className="text-red-400">🟥 {match.homeReds}</span>
-                  <span className="text-gray-400">⚡ {match.homeFouls} fouls</span>
+                  <span className="text-gray-400">⚡ {match.homeFouls}</span>
                 </div>
               </div>
               <div className="bg-gray-800/50 rounded-lg p-2">
-                <div className="text-gray-500 mb-1">{match.awayTeam}</div>
-                <div className="flex gap-3">
+                <div className="text-gray-500 mb-1 truncate">{match.awayTeam}</div>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <span className="text-yellow-400">🟨 {match.awayYellows}</span>
                   <span className="text-red-400">🟥 {match.awayReds}</span>
-                  <span className="text-gray-400">⚡ {match.awayFouls} fouls</span>
+                  <span className="text-gray-400">⚡ {match.awayFouls}</span>
                 </div>
               </div>
             </div>

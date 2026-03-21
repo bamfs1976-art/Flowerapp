@@ -9,6 +9,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent iOS overscroll bounce showing white */
+  background-color: #0a0a0f;
+}
+
+/* ── Safe area insets (iPhone Dynamic Island, home indicator) ── */
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* ── Glass morphism utilities ── */
@@ -32,21 +47,70 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* ── Custom scrollbar (thin, unobtrusive) ── */
+/* ── Touch-optimized scrolling ── */
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+.scroll-touch::-webkit-scrollbar {
+  display: none;
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+
+/* Scroll snap for tab bars */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+.scroll-snap-x > * {
+  scroll-snap-align: start;
+}
+
+/* ── Custom scrollbar (desktop only, hidden on touch) ── */
+
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Hide scrollbars on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+  * {
+    scrollbar-width: none;
+  }
+}
+
+/* ── Touch-friendly tap targets ── */
+
+@media (pointer: coarse) {
+  /* Ensure minimum 44px tap targets (Apple HIG) */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  /* Exception: inline links and tiny UI elements */
+  a:not([class*="px-"]):not([class*="py-"]),
+  table a, table button,
+  .form-grid button {
+    min-height: auto;
+    min-width: auto;
+  }
 }
 
 /* ── Animations ── */
@@ -83,6 +147,15 @@ body {
   );
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Staggered children animation */

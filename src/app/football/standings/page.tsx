@@ -52,9 +52,9 @@ export default function StandingsPage() {
       {loading ? (
         <LoadingSkeleton rows={20} />
       ) : standings.length > 0 ? (
-        <div className="glass-card rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+        <div className="glass-card rounded-2xl overflow-hidden -mx-4 sm:mx-0">
+          <div className="overflow-x-auto scroll-touch">
+            <table className="w-full text-[12px] sm:text-[13px]" style={{ minWidth: 720 }}>
               <thead>
                 <tr className="border-b border-white/[0.06] text-white/30 text-[11px] uppercase tracking-wider">
                   <th className="px-3 py-3.5 text-left w-8">#</th>

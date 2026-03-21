@@ -13,17 +13,17 @@ export default function FootballLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="min-h-screen bg-[#0a0a0f] text-white safe-top">
       {/* Ambient background glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-emerald-500/[0.03] rounded-full blur-[120px]" />
         <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] bg-blue-500/[0.02] rounded-full blur-[100px]" />
       </div>
 
-      <div className="relative">
+      <div className="relative safe-x">
         <FootballNav />
-        <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
-        <footer className="border-t border-white/[0.04] py-6 text-center text-[11px] text-white/25 tracking-wide">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</main>
+        <footer className="border-t border-white/[0.04] py-6 safe-bottom text-center text-[11px] text-white/25 tracking-wide">
           Data from{" "}
           <a
             href="https://www.football-data.co.uk"
