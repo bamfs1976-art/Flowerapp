@@ -8,6 +8,8 @@ import type {
   TeamDiscipline,
   PlayerStats,
   MatchData,
+  MatchPrediction,
+  PlayerBookingRisk,
 } from "@/lib/football-types";
 import LeagueSelector from "@/components/football/LeagueSelector";
 import StatCard from "@/components/football/StatCard";
@@ -15,11 +17,11 @@ import BarChart from "@/components/football/BarChart";
 import HorizontalBar from "@/components/football/HorizontalBar";
 import LoadingSkeleton from "@/components/football/LoadingSkeleton";
 
-type Tab = "overview" | "referees" | "teams" | "players" | "matches";
+type Tab = "predictions" | "overview" | "referees" | "teams" | "players" | "matches";
 
 export default function BookingsPage() {
   const [competition, setCompetition] = useState<string>("E0");
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>("predictions");
   const [analytics, setAnalytics] = useState<BookingAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export default function BookingsPage() {
   }, [fetchBookings]);
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
+    { key: "predictions", label: "Predictions", icon: "🔮" },
     { key: "overview", label: "Overview", icon: "📊" },
     { key: "referees", label: "Referee Strictness", icon: "👨‍⚖️" },
     { key: "teams", label: "Team Discipline", icon: "🏟️" },
@@ -95,6 +98,7 @@ export default function BookingsPage() {
         <LoadingSkeleton rows={8} />
       ) : analytics && analytics.totalMatchesAnalyzed > 0 ? (
         <>
+          {activeTab === "predictions" && <PredictionsTab competition={competition} />}
           {activeTab === "overview" && <OverviewTab analytics={analytics} />}
           {activeTab === "referees" && <RefereesTab referees={analytics.refereeStats} />}
           {activeTab === "teams" && <TeamsTab teams={analytics.teamDiscipline} avgCards={analytics.averageCardsPerMatch} />}
@@ -104,6 +108,314 @@ export default function BookingsPage() {
       ) : (
         <div className="text-gray-500 text-center py-12">
           No booking data available. CSV data may still be loading.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Predictions Tab ──
+
+function PredictionsTab({ competition }: { competition: string }) {
+  const [predictions, setPredictions] = useState<MatchPrediction[]>([]);
+  const [meta, setMeta] = useState<{
+    fixtureCount: number;
+    matchesAnalyzed: number;
+    hasPlayerData: boolean;
+    leagueAvgCards: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    const url = competition
+      ? `/api/football/predictions?competition=${competition}`
+      : "/api/football/predictions";
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch");
+        return r.json();
+      })
+      .then((data) => {
+        setPredictions(data.predictions || []);
+        setMeta(data.meta || null);
+      })
+      .catch(() => setError("Failed to load predictions"))
+      .finally(() => setLoading(false));
+  }, [competition]);
+
+  if (loading) return <LoadingSkeleton rows={6} />;
+
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+        {error}
+      </div>
+    );
+  }
+
+  if (predictions.length === 0) {
+    return (
+      <div className="text-gray-500 text-center py-12">
+        <div className="text-3xl mb-3">🔮</div>
+        <p>No upcoming fixtures found for predictions.</p>
+        <p className="text-xs mt-1">Fixture data may not yet be available from football-data.co.uk</p>
+      </div>
+    );
+  }
+
+  const riskColors = {
+    Low: { bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-400", badge: "bg-emerald-500/20 text-emerald-400" },
+    Medium: { bg: "bg-blue-500/10", border: "border-blue-500/30", text: "text-blue-400", badge: "bg-blue-500/20 text-blue-400" },
+    High: { bg: "bg-yellow-500/10", border: "border-yellow-500/30", text: "text-yellow-400", badge: "bg-yellow-500/20 text-yellow-400" },
+    "Very High": { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-400", badge: "bg-red-500/20 text-red-400" },
+  };
+
+  const confidenceColors = {
+    Low: "text-gray-500",
+    Medium: "text-yellow-400",
+    High: "text-emerald-400",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Booking Predictions</h2>
+          <p className="text-gray-500 text-sm">
+            Upcoming fixtures ranked by expected card volume
+          </p>
+        </div>
+        {meta && (
+          <div className="flex gap-4 text-xs text-gray-500">
+            <span>{meta.fixtureCount} fixtures</span>
+            <span>{meta.matchesAnalyzed} matches analyzed</span>
+            <span>Avg: {meta.leagueAvgCards} cards/match</span>
+            {!meta.hasPlayerData && (
+              <span className="text-yellow-500">Upload player CSV for player-level risks</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard
+          label="Very High Risk"
+          value={predictions.filter((p) => p.riskRating === "Very High").length}
+          icon="🔴"
+          color="red"
+          sublabel="6+ cards expected"
+        />
+        <StatCard
+          label="High Risk"
+          value={predictions.filter((p) => p.riskRating === "High").length}
+          icon="🟡"
+          color="yellow"
+          sublabel="4.5-6 cards expected"
+        />
+        <StatCard
+          label="Medium Risk"
+          value={predictions.filter((p) => p.riskRating === "Medium").length}
+          icon="🔵"
+          color="blue"
+          sublabel="3-4.5 cards expected"
+        />
+        <StatCard
+          label="Highest Predicted"
+          value={predictions[0]?.expectedCards || 0}
+          icon="🔮"
+          color="red"
+          sublabel={predictions[0] ? `${predictions[0].fixture.homeTeam} v ${predictions[0].fixture.awayTeam}` : ""}
+        />
+      </div>
+
+      {/* Prediction cards */}
+      <div className="space-y-3">
+        {predictions.map((pred) => {
+          const colors = riskColors[pred.riskRating];
+          const isExpanded = expandedMatch === pred.fixture.id;
+
+          return (
+            <div
+              key={pred.fixture.id}
+              className={`border rounded-xl overflow-hidden transition-all ${colors.border} ${colors.bg}`}
+            >
+              {/* Main row */}
+              <button
+                onClick={() => setExpandedMatch(isExpanded ? null : pred.fixture.id)}
+                className="w-full px-4 py-4 flex items-center justify-between gap-4 text-left"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className="flex-shrink-0 text-center">
+                    <div className="text-2xl font-bold text-white">{pred.expectedCards}</div>
+                    <div className="text-[10px] text-gray-500 uppercase">Cards</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-white font-medium truncate">
+                      {pred.fixture.homeTeam} vs {pred.fixture.awayTeam}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {pred.fixture.date} {pred.fixture.time && `• ${pred.fixture.time}`} • {pred.fixture.league}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Card range */}
+                  <span className="text-xs text-gray-500 hidden sm:inline">
+                    {pred.cardRange.low}-{pred.cardRange.high} range
+                  </span>
+                  {/* Risk badge */}
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${colors.badge}`}>
+                    {pred.riskRating}
+                  </span>
+                  {/* Confidence */}
+                  <span className={`text-xs ${confidenceColors[pred.confidence]}`}>
+                    {pred.confidence}
+                  </span>
+                  {/* Expand arrow */}
+                  <span className={`text-gray-500 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                    ▼
+                  </span>
+                </div>
+              </button>
+
+              {/* Expanded details */}
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t border-gray-800/50 pt-4 space-y-4">
+                  {/* Prediction factors */}
+                  <div>
+                    <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2">Prediction Factors</h4>
+                    <div className="space-y-1.5">
+                      {pred.factors.map((factor, i) => (
+                        <div key={i} className="flex items-center gap-2 text-sm">
+                          <span className={`flex-shrink-0 w-5 text-center ${
+                            factor.impact === "increases" ? "text-red-400" :
+                            factor.impact === "decreases" ? "text-emerald-400" :
+                            "text-gray-500"
+                          }`}>
+                            {factor.impact === "increases" ? "▲" : factor.impact === "decreases" ? "▼" : "–"}
+                          </span>
+                          <span className="text-gray-300">{factor.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Head-to-head */}
+                  {pred.headToHead && (
+                    <div>
+                      <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2">Head-to-Head Record</h4>
+                      <div className="grid grid-cols-4 gap-3 text-center">
+                        <div>
+                          <div className="text-lg font-bold text-white">{pred.headToHead.matches}</div>
+                          <div className="text-[10px] text-gray-500 uppercase">Meetings</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-yellow-400">{pred.headToHead.avgCards}</div>
+                          <div className="text-[10px] text-gray-500 uppercase">Avg Cards</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-red-400">{pred.headToHead.highestCards}</div>
+                          <div className="text-[10px] text-gray-500 uppercase">Max Cards</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-gray-400">
+                            {pred.headToHead.avgHomeFouls + pred.headToHead.avgAwayFouls}
+                          </div>
+                          <div className="text-[10px] text-gray-500 uppercase">Avg Fouls</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Player risks */}
+                  {pred.playerRisks.length > 0 && (
+                    <div>
+                      <h4 className="text-xs uppercase text-gray-500 font-semibold mb-2">
+                        Players Most Likely to Be Booked
+                      </h4>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {pred.playerRisks.slice(0, 6).map((player) => (
+                          <PlayerRiskCard key={`${player.player}-${player.squad}`} player={player} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {pred.playerRisks.length === 0 && (
+                    <div className="text-xs text-gray-500 italic">
+                      Upload a player stats CSV in the Player Cards tab to see individual booking risk predictions
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Methodology note */}
+      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-xs text-gray-500">
+        <span className="font-semibold text-gray-400">How predictions work: </span>
+        Predictions combine team discipline profiles (home/away specific card rates), head-to-head
+        history, seasonal card trends, and combined foul rates. Player-level risks factor in individual
+        card frequency, position risk, opponent fouling patterns, and minutes-per-card efficiency.
+        Confidence reflects data availability across these dimensions.
+      </div>
+    </div>
+  );
+}
+
+function PlayerRiskCard({ player }: { player: PlayerBookingRisk }) {
+  const riskColors = {
+    Low: "border-gray-700 bg-gray-800/50",
+    Medium: "border-blue-500/30 bg-blue-500/5",
+    High: "border-yellow-500/30 bg-yellow-500/5",
+    "Very High": "border-red-500/30 bg-red-500/5",
+  };
+  const riskBadge = {
+    Low: "bg-gray-700 text-gray-400",
+    Medium: "bg-blue-500/20 text-blue-400",
+    High: "bg-yellow-500/20 text-yellow-400",
+    "Very High": "bg-red-500/20 text-red-400",
+  };
+
+  return (
+    <div className={`border rounded-lg p-3 ${riskColors[player.riskLevel]}`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-white truncate">{player.player}</div>
+          <div className="text-[10px] text-gray-500">{player.squad} • {player.position}</div>
+        </div>
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${riskBadge[player.riskLevel]}`}>
+          {player.riskScore}%
+        </span>
+      </div>
+      {/* Risk bar */}
+      <div className="h-1 bg-gray-800 rounded-full overflow-hidden mb-2">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{
+            width: `${player.riskScore}%`,
+            backgroundColor:
+              player.riskScore >= 70 ? "#ef4444" :
+              player.riskScore >= 50 ? "#f59e0b" :
+              player.riskScore >= 30 ? "#3b82f6" : "#6b7280",
+          }}
+        />
+      </div>
+      <div className="flex gap-3 text-[10px] text-gray-500">
+        <span>{player.cardsPerNinety} cards/90</span>
+        <span>{player.totalCards} total</span>
+        <span>{player.matchesPlayed} MP</span>
+      </div>
+      {player.reasons.length > 0 && (
+        <div className="mt-1.5 text-[10px] text-gray-400">
+          {player.reasons[0]}
         </div>
       )}
     </div>

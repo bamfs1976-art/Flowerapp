@@ -191,3 +191,43 @@ export interface FixtureData {
   homeTeam: string;
   awayTeam: string;
 }
+
+// ── Match booking prediction ──
+
+export interface MatchPrediction {
+  fixture: FixtureData;
+  expectedCards: number;
+  cardRange: { low: number; high: number };
+  riskRating: "Low" | "Medium" | "High" | "Very High";
+  confidence: "Low" | "Medium" | "High";
+  factors: PredictionFactor[];
+  headToHead: HeadToHeadRecord | null;
+  playerRisks: PlayerBookingRisk[];
+}
+
+export interface PredictionFactor {
+  label: string;
+  impact: "increases" | "decreases" | "neutral";
+  value: string;
+}
+
+export interface HeadToHeadRecord {
+  matches: number;
+  avgCards: number;
+  avgHomeFouls: number;
+  avgAwayFouls: number;
+  highestCards: number;
+}
+
+export interface PlayerBookingRisk {
+  player: string;
+  squad: string;
+  position: string;
+  riskLevel: "Low" | "Medium" | "High" | "Very High";
+  riskScore: number;            // 0-100
+  cardsPerMatch: number;
+  cardsPerNinety: number;
+  totalCards: number;
+  matchesPlayed: number;
+  reasons: string[];
+}

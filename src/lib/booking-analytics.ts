@@ -6,6 +6,11 @@ import type {
   TeamDiscipline,
   BookingAnalytics,
   PlayerStats,
+  FixtureData,
+  MatchPrediction,
+  PredictionFactor,
+  HeadToHeadRecord,
+  PlayerBookingRisk,
 } from "./football-types";
 
 export function analyzeBookings(
@@ -300,58 +305,291 @@ function emptyAnalytics(): BookingAnalytics {
   };
 }
 
-// Predict expected cards for an upcoming match
-export function predictMatchCards(
+// ── Enhanced prediction engine ──
+
+// Build head-to-head record between two teams from historical matches
+function buildHeadToHead(
   homeTeam: string,
   awayTeam: string,
-  referee: string,
-  analytics: BookingAnalytics
-): {
-  expectedCards: number;
-  confidence: "Low" | "Medium" | "High";
-  factors: string[];
-} {
-  const factors: string[] = [];
-  let estimate = analytics.averageCardsPerMatch || 4;
-  let dataPoints = 0;
+  matches: MatchData[]
+): HeadToHeadRecord | null {
+  const h2h = matches.filter(
+    (m) =>
+      (m.homeTeam === homeTeam && m.awayTeam === awayTeam) ||
+      (m.homeTeam === awayTeam && m.awayTeam === homeTeam)
+  );
 
-  const homeData = analytics.teamDiscipline.find((t) => t.team === homeTeam);
-  const awayData = analytics.teamDiscipline.find((t) => t.team === awayTeam);
-  const refData = analytics.refereeStats.find((r) => r.name === referee);
+  if (h2h.length === 0) return null;
 
-  if (homeData && homeData.matchesPlayed >= 3) {
-    const weight = homeData.homeCardRate;
-    estimate = (estimate + weight) / 2;
-    dataPoints++;
-    if (homeData.cardsPerMatch > analytics.averageCardsPerMatch) {
-      factors.push(
-        `${homeTeam} average ${homeData.cardsPerMatch} cards/match (above avg)`
-      );
-    }
-  }
-
-  if (awayData && awayData.matchesPlayed >= 3) {
-    const weight = awayData.awayCardRate;
-    estimate = (estimate + weight) / 2;
-    dataPoints++;
-    if (awayData.cardsPerMatch > analytics.averageCardsPerMatch) {
-      factors.push(
-        `${awayTeam} average ${awayData.cardsPerMatch} cards/match (above avg)`
-      );
-    }
-  }
-
-  if (refData && refData.matchesOfficiated >= 3) {
-    estimate = (estimate + refData.cardsPerMatch) / 2;
-    dataPoints++;
-    factors.push(
-      `Referee ${refData.name} is ${refData.strictnessRating.toLowerCase()} (${refData.cardsPerMatch}/match)`
-    );
-  }
+  const totalCards = h2h.reduce((s, m) => s + m.totalCards, 0);
+  const totalHomeFouls = h2h.reduce((s, m) => s + m.homeFouls, 0);
+  const totalAwayFouls = h2h.reduce((s, m) => s + m.awayFouls, 0);
+  const highestCards = Math.max(...h2h.map((m) => m.totalCards));
 
   return {
-    expectedCards: Math.round(estimate * 10) / 10,
-    confidence: dataPoints >= 3 ? "High" : dataPoints >= 2 ? "Medium" : "Low",
-    factors: factors.length > 0 ? factors : ["Insufficient data for detailed prediction"],
+    matches: h2h.length,
+    avgCards: round(totalCards / h2h.length),
+    avgHomeFouls: round(totalHomeFouls / h2h.length),
+    avgAwayFouls: round(totalAwayFouls / h2h.length),
+    highestCards,
   };
+}
+
+// Compute player booking risk for a given team
+function computePlayerRisks(
+  teamName: string,
+  opponentDiscipline: TeamDiscipline | undefined,
+  players: PlayerStats[],
+  leagueAvgCards: number
+): PlayerBookingRisk[] {
+  const teamPlayers = players.filter(
+    (p) => p.squad === teamName && p.matchesPlayed >= 3
+  );
+
+  if (teamPlayers.length === 0) return [];
+
+  return teamPlayers
+    .map((p) => {
+      const reasons: string[] = [];
+      let riskScore = 0;
+
+      // Factor 1: Individual card rate (0-40 points)
+      if (p.cardsPerNinety >= 0.5) {
+        riskScore += 40;
+        reasons.push(`Very high card rate: ${p.cardsPerNinety}/90min`);
+      } else if (p.cardsPerNinety >= 0.35) {
+        riskScore += 30;
+        reasons.push(`High card rate: ${p.cardsPerNinety}/90min`);
+      } else if (p.cardsPerNinety >= 0.2) {
+        riskScore += 20;
+        reasons.push(`Moderate card rate: ${p.cardsPerNinety}/90min`);
+      } else if (p.cardsPerNinety > 0) {
+        riskScore += 10;
+      }
+
+      // Factor 2: Position risk (0-20 points) — midfielders and defenders more prone
+      const pos = p.position.toUpperCase();
+      if (pos.includes("MF") || pos.includes("DM") || pos.includes("CM")) {
+        riskScore += 20;
+        reasons.push("Midfielder — high-contact position");
+      } else if (pos.includes("DF") || pos.includes("CB") || pos.includes("FB")) {
+        riskScore += 15;
+        reasons.push("Defender — frequent tackling");
+      } else if (pos.includes("FW") || pos.includes("ST") || pos.includes("LW") || pos.includes("RW")) {
+        riskScore += 8;
+      }
+
+      // Factor 3: Opponent fouling tendency (0-20 points)
+      if (opponentDiscipline && opponentDiscipline.foulsPerMatch > 12) {
+        riskScore += 20;
+        reasons.push(
+          `Opponent commits ${opponentDiscipline.foulsPerMatch} fouls/match`
+        );
+      } else if (opponentDiscipline && opponentDiscipline.foulsPerMatch > 10) {
+        riskScore += 10;
+      }
+
+      // Factor 4: Minutes per card efficiency (0-20 points)
+      if (p.minutesPerCard > 0 && p.minutesPerCard < 200) {
+        riskScore += 20;
+        reasons.push(`Card every ${p.minutesPerCard} minutes`);
+      } else if (p.minutesPerCard > 0 && p.minutesPerCard < 400) {
+        riskScore += 10;
+      }
+
+      // Cap at 100
+      riskScore = Math.min(riskScore, 100);
+
+      let riskLevel: PlayerBookingRisk["riskLevel"];
+      if (riskScore >= 70) riskLevel = "Very High";
+      else if (riskScore >= 50) riskLevel = "High";
+      else if (riskScore >= 30) riskLevel = "Medium";
+      else riskLevel = "Low";
+
+      return {
+        player: p.player,
+        squad: p.squad,
+        position: p.position,
+        riskLevel,
+        riskScore,
+        cardsPerMatch: p.cardsPerMatch,
+        cardsPerNinety: p.cardsPerNinety,
+        totalCards: p.totalCards,
+        matchesPlayed: p.matchesPlayed,
+        reasons,
+      };
+    })
+    .filter((p) => p.riskScore >= 25) // Only include meaningful risk
+    .sort((a, b) => b.riskScore - a.riskScore);
+}
+
+// Generate full predictions for upcoming fixtures
+export function generatePredictions(
+  fixtures: FixtureData[],
+  analytics: BookingAnalytics,
+  allMatches: MatchData[]
+): MatchPrediction[] {
+  return fixtures.map((fixture) => {
+    const factors: PredictionFactor[] = [];
+    const weights: number[] = [];
+    const values: number[] = [];
+    const leagueAvg = analytics.averageCardsPerMatch || 4;
+    let dataPoints = 0;
+
+    // ── Factor 1: Home team discipline (weight: 30%) ──
+    const homeData = analytics.teamDiscipline.find(
+      (t) => t.team === fixture.homeTeam
+    );
+    if (homeData && homeData.matchesPlayed >= 3) {
+      weights.push(0.3);
+      values.push(homeData.homeCardRate);
+      dataPoints++;
+
+      const diff = homeData.homeCardRate - leagueAvg / 2;
+      factors.push({
+        label: `${fixture.homeTeam} concede ${homeData.homeCardRate} cards/home match`,
+        impact: diff > 0.3 ? "increases" : diff < -0.3 ? "decreases" : "neutral",
+        value: `${homeData.homeCardRate}/match`,
+      });
+    }
+
+    // ── Factor 2: Away team discipline (weight: 30%) ──
+    const awayData = analytics.teamDiscipline.find(
+      (t) => t.team === fixture.awayTeam
+    );
+    if (awayData && awayData.matchesPlayed >= 3) {
+      weights.push(0.3);
+      values.push(awayData.awayCardRate);
+      dataPoints++;
+
+      const diff = awayData.awayCardRate - leagueAvg / 2;
+      factors.push({
+        label: `${fixture.awayTeam} concede ${awayData.awayCardRate} cards/away match`,
+        impact: diff > 0.3 ? "increases" : diff < -0.3 ? "decreases" : "neutral",
+        value: `${awayData.awayCardRate}/match`,
+      });
+    }
+
+    // ── Factor 3: Head-to-head history (weight: 20%) ──
+    const h2h = buildHeadToHead(fixture.homeTeam, fixture.awayTeam, allMatches);
+    if (h2h && h2h.matches >= 1) {
+      weights.push(0.2);
+      values.push(h2h.avgCards);
+      dataPoints++;
+
+      const diff = h2h.avgCards - leagueAvg;
+      factors.push({
+        label: `H2H average: ${h2h.avgCards} cards across ${h2h.matches} meeting${h2h.matches > 1 ? "s" : ""}`,
+        impact: diff > 0.5 ? "increases" : diff < -0.5 ? "decreases" : "neutral",
+        value: `${h2h.avgCards} avg`,
+      });
+    }
+
+    // ── Factor 4: Monthly trend (weight: 10%) ──
+    const trends = analytics.monthlyTrends;
+    if (trends.length >= 2) {
+      const recentTrend = trends[trends.length - 1];
+      weights.push(0.1);
+      values.push(recentTrend.avgCards);
+
+      const diff = recentTrend.avgCards - leagueAvg;
+      factors.push({
+        label: `Recent trend: ${recentTrend.avgCards} cards/match in ${recentTrend.month}`,
+        impact: diff > 0.3 ? "increases" : diff < -0.3 ? "decreases" : "neutral",
+        value: `${recentTrend.avgCards}/match`,
+      });
+    }
+
+    // ── Factor 5: Team fouling patterns (weight: 10%) ──
+    if (homeData && awayData) {
+      const combinedFouls = homeData.foulsPerMatch + awayData.foulsPerMatch;
+      const avgMatchFouls = analytics.averageFoulsPerMatch || 22;
+      weights.push(0.1);
+      values.push(
+        combinedFouls > avgMatchFouls
+          ? leagueAvg * 1.15
+          : combinedFouls < avgMatchFouls * 0.85
+            ? leagueAvg * 0.85
+            : leagueAvg
+      );
+
+      factors.push({
+        label: `Combined fouls: ${round(combinedFouls)}/match (avg ${avgMatchFouls})`,
+        impact:
+          combinedFouls > avgMatchFouls * 1.1
+            ? "increases"
+            : combinedFouls < avgMatchFouls * 0.9
+              ? "decreases"
+              : "neutral",
+        value: `${round(combinedFouls)} fouls`,
+      });
+    }
+
+    // ── Compute weighted prediction ──
+    let expectedCards: number;
+    if (weights.length > 0) {
+      const totalWeight = weights.reduce((s, w) => s + w, 0);
+      expectedCards = weights.reduce(
+        (s, w, i) => s + (w / totalWeight) * values[i],
+        0
+      );
+      // If both teams have data, sum their rates instead of averaging
+      if (homeData && awayData && homeData.matchesPlayed >= 3 && awayData.matchesPlayed >= 3) {
+        const directEstimate = homeData.homeCardRate + awayData.awayCardRate;
+        // Blend: 60% direct sum, 40% weighted model
+        expectedCards = directEstimate * 0.6 + expectedCards * 0.4;
+      }
+    } else {
+      expectedCards = leagueAvg;
+    }
+
+    expectedCards = round(expectedCards);
+
+    // Card range (±30%)
+    const cardRange = {
+      low: round(Math.max(0, expectedCards * 0.7)),
+      high: round(expectedCards * 1.35),
+    };
+
+    // Risk rating
+    let riskRating: MatchPrediction["riskRating"];
+    if (expectedCards >= 6) riskRating = "Very High";
+    else if (expectedCards >= 4.5) riskRating = "High";
+    else if (expectedCards >= 3) riskRating = "Medium";
+    else riskRating = "Low";
+
+    // Confidence
+    let confidence: MatchPrediction["confidence"];
+    if (dataPoints >= 3) confidence = "High";
+    else if (dataPoints >= 2) confidence = "Medium";
+    else confidence = "Low";
+
+    // ── Player booking risks ──
+    const homePlayerRisks = computePlayerRisks(
+      fixture.homeTeam,
+      awayData,
+      analytics.playerStats,
+      leagueAvg
+    );
+    const awayPlayerRisks = computePlayerRisks(
+      fixture.awayTeam,
+      homeData,
+      analytics.playerStats,
+      leagueAvg
+    );
+    const playerRisks = [...homePlayerRisks, ...awayPlayerRisks]
+      .sort((a, b) => b.riskScore - a.riskScore)
+      .slice(0, 10);
+
+    return {
+      fixture,
+      expectedCards,
+      cardRange,
+      riskRating,
+      confidence,
+      factors,
+      headToHead: h2h,
+      playerRisks,
+    };
+  }).sort((a, b) => b.expectedCards - a.expectedCards);
 }

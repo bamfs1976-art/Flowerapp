@@ -19,6 +19,7 @@ This file provides guidance for AI assistants (Claude, etc.) working in this rep
   - Card distribution analysis (by match result, monthly trends, home vs away)
   - High-card match rankings
   - Player card profiles (via CSV upload from Kaggle/FBref)
+  - **Booking predictions** for upcoming fixtures with player-level risk analysis
 
 **Data sources (CSV-based, no API key required):**
 - [football-data.co.uk](https://www.football-data.co.uk) — Match result CSVs for all leagues (cards, fouls, referee, shots, corners)
@@ -50,6 +51,7 @@ Flowerapp/
     │   │   ├── matches/route.ts       # GET — match results from CSV
     │   │   ├── match/route.ts         # GET — single match lookup
     │   │   ├── players/route.ts       # GET/POST — player stats CSV upload
+    │   │   ├── predictions/route.ts   # GET — booking predictions for upcoming fixtures
     │   │   ├── standings/route.ts     # GET — computed league standings
     │   │   └── today/route.ts         # GET — today's matches
     │   └── football/
