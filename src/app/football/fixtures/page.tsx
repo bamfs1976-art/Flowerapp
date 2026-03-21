@@ -1,66 +1,77 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { Match, CompetitionCode } from "@/lib/football-types";
+import type { MatchData, FixtureData, LeagueCode } from "@/lib/football-types";
 import LeagueSelector from "@/components/football/LeagueSelector";
 import MatchCard from "@/components/football/MatchCard";
 import LoadingSkeleton from "@/components/football/LoadingSkeleton";
 
-type ViewMode = "upcoming" | "results";
+type ViewMode = "results" | "upcoming";
 
 export default function FixturesPage() {
-  const [competition, setCompetition] = useState<CompetitionCode>("PL");
+  const [competition, setCompetition] = useState<LeagueCode>("E0");
   const [viewMode, setViewMode] = useState<ViewMode>("results");
-  const [matches, setMatches] = useState<Match[]>([]);
+  const [matches, setMatches] = useState<MatchData[]>([]);
+  const [fixtures, setFixtures] = useState<FixtureData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMatches = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const status = viewMode === "upcoming" ? "SCHEDULED" : "FINISHED";
-      const res = await fetch(
-        `/api/football/matches?competition=${competition}&status=${status}`
-      );
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
-      const sorted = (data.matches || []).sort((a: Match, b: Match) => {
-        if (viewMode === "results") {
-          return new Date(b.utcDate).getTime() - new Date(a.utcDate).getTime();
-        }
-        return new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime();
-      });
-      setMatches(sorted);
+      if (viewMode === "results") {
+        const res = await fetch(
+          `/api/football/matches?competition=${competition}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        setMatches(data.matches || []);
+      } else {
+        const res = await fetch(
+          `/api/football/fixtures?competition=${competition}`
+        );
+        if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        setFixtures(data.fixtures || []);
+      }
     } catch {
-      setError("Failed to load fixtures");
+      setError("Failed to load data");
     } finally {
       setLoading(false);
     }
   }, [competition, viewMode]);
 
   useEffect(() => {
-    fetchMatches();
-  }, [fetchMatches]);
+    fetchData();
+  }, [fetchData]);
 
-  // Group matches by matchday
-  const groupedByMatchday = matches.reduce(
-    (acc, match) => {
-      const key = `Matchday ${match.matchday || "?"}`;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(match);
-      return acc;
-    },
-    {} as Record<string, Match[]>
-  );
+  // Group matches by date
+  const grouped = viewMode === "results"
+    ? matches.reduce((acc, match) => {
+        const key = match.date;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(match);
+        return acc;
+      }, {} as Record<string, MatchData[]>)
+    : {};
+
+  const groupedFixtures = viewMode === "upcoming"
+    ? fixtures.reduce((acc, fix) => {
+        const key = fix.date;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(fix);
+        return acc;
+      }, {} as Record<string, FixtureData[]>)
+    : {};
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold mb-1">Fixtures & Results</h1>
           <p className="text-gray-500 text-sm">
-            Browse upcoming fixtures and recent results
+            Browse match results and upcoming fixtures
           </p>
         </div>
 
@@ -98,16 +109,47 @@ export default function FixturesPage() {
 
       {loading ? (
         <LoadingSkeleton rows={8} />
-      ) : matches.length > 0 ? (
+      ) : viewMode === "results" ? (
+        Object.keys(grouped).length > 0 ? (
+          <div className="space-y-8">
+            {Object.entries(grouped).map(([date, dayMatches]) => (
+              <div key={date}>
+                <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
+                  {new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </h3>
+                <div className="grid md:grid-cols-2 gap-3">
+                  {dayMatches.map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center py-12">
+            No results available for this league
+          </div>
+        )
+      ) : Object.keys(groupedFixtures).length > 0 ? (
         <div className="space-y-8">
-          {Object.entries(groupedByMatchday).map(([matchday, dayMatches]) => (
-            <div key={matchday}>
+          {Object.entries(groupedFixtures).map(([date, dayFixtures]) => (
+            <div key={date}>
               <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
-                {matchday}
+                {new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
               </h3>
               <div className="grid md:grid-cols-2 gap-3">
-                {dayMatches.map((match) => (
-                  <MatchCard key={match.id} match={match} />
+                {dayFixtures.map((fix) => (
+                  <MatchCard key={fix.id} fixture={fix} />
                 ))}
               </div>
             </div>
@@ -115,8 +157,7 @@ export default function FixturesPage() {
         </div>
       ) : (
         <div className="text-gray-500 text-center py-12">
-          No {viewMode === "upcoming" ? "upcoming fixtures" : "results"}{" "}
-          available
+          No upcoming fixtures available
         </div>
       )}
     </div>

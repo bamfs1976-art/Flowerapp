@@ -6,7 +6,7 @@ This file provides guidance for AI assistants (Claude, etc.) working in this rep
 
 **Flowerapp** is an AI-powered plant and flower identification web app. Users upload or capture a photo of any plant, and Claude's vision API identifies it — returning the common name, scientific name, care instructions, toxicity info, and fun facts.
 
-**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision) · Football-Data.org API v4
+**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision) · Football CSV data (football-data.co.uk, GitHub, Kaggle)
 
 ## Football Analytics Module
 
@@ -22,7 +22,12 @@ The app includes a football analytics section focused on **player bookings** acr
   - Booking timing analysis (by half, by 15-minute windows)
   - Card timeline visualizations for individual players
 
-**Data source:** [football-data.org](https://www.football-data.org) free tier (10 req/min, covers PL, Bundesliga, Serie A, La Liga, Ligue 1, Eredivisie, Primeira Liga, Championship, Champions League)
+**Data sources (CSV-based, no API key required):**
+- [football-data.co.uk](https://www.football-data.co.uk) — Match result CSVs for all leagues (cards, fouls, referee, shots, corners)
+- [GitHub football-datasets](https://github.com/datasets/football-datasets) — Premier League CSV (fallback)
+- [Kaggle player stats](https://www.kaggle.com/datasets/hubertsidorowicz/football-players-stats-2025-2026) — Individual player card data (optional CSV upload)
+
+**Leagues covered:** PL, Bundesliga, Serie A, La Liga, Ligue 1, Eredivisie, Primeira Liga, Championship
 
 ## Repository Structure
 
@@ -126,9 +131,8 @@ User uploads photo
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key from https://console.anthropic.com/ |
-| `FOOTBALL_DATA_API_KEY` | Yes (for football) | Your football-data.org API key from https://www.football-data.org/ |
 
-The Anthropic API key is read automatically by the `@anthropic-ai/sdk` package. The football API key is used by `src/lib/football-api.ts`.
+The Anthropic API key is read automatically by the `@anthropic-ai/sdk` package. The football analytics module uses CSV data fetched from public URLs — no API key needed.
 
 ## Development Workflow
 

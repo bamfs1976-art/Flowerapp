@@ -24,7 +24,7 @@ export default function FootballNav() {
             </span>
           </Link>
 
-          <div className="flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -41,6 +41,29 @@ export default function FootballNav() {
                 >
                   <span className="mr-1.5">{item.icon}</span>
                   {item.label}
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Mobile nav */}
+          <div className="flex md:hidden items-center gap-1">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/football" && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`p-2 rounded-lg text-sm transition-all ${
+                    isActive
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "text-gray-500 hover:text-white"
+                  }`}
+                  title={item.label}
+                >
+                  {item.icon}
                 </Link>
               );
             })}

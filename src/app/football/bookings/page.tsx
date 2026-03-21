@@ -1,96 +1,42 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type {
-  Match,
-  CompetitionCode,
+  LeagueCode,
   BookingAnalytics,
-  PlayerBookingProfile,
-  RefereeProfile,
+  RefereeStats,
   TeamDiscipline,
+  PlayerStats,
+  MatchData,
 } from "@/lib/football-types";
-import { analyzeBookings } from "@/lib/booking-analytics";
 import LeagueSelector from "@/components/football/LeagueSelector";
 import StatCard from "@/components/football/StatCard";
 import BarChart from "@/components/football/BarChart";
 import HorizontalBar from "@/components/football/HorizontalBar";
 import LoadingSkeleton from "@/components/football/LoadingSkeleton";
 
-type Tab = "overview" | "players" | "referees" | "teams";
+type Tab = "overview" | "referees" | "teams" | "players" | "matches";
 
 export default function BookingsPage() {
-  const [competition, setCompetition] = useState<CompetitionCode>("PL");
+  const [competition, setCompetition] = useState<string>("E0");
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [analytics, setAnalytics] = useState<BookingAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [detailProgress, setDetailProgress] = useState({ loaded: 0, total: 0 });
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setAnalytics(null);
-
     try {
-      // Fetch all finished matches for the competition
-      const res = await fetch(
-        `/api/football/matches?competition=${competition}&status=FINISHED`
-      );
-      if (!res.ok) throw new Error("Failed to fetch matches");
-      const data = await res.json();
-      const matches: Match[] = data.matches || [];
-
-      if (matches.length === 0) {
-        setAnalytics(null);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch individual match details for booking data
-      // The list endpoint doesn't include bookings - need detail endpoint
-      setLoadingDetail(true);
-      setDetailProgress({ loaded: 0, total: Math.min(matches.length, 50) });
-
-      const matchesToFetch = matches.slice(0, 50); // Limit to 50 to avoid rate limits
-      const detailedMatches: Match[] = [];
-
-      // Fetch in batches of 8 with delay to respect rate limits
-      const batchSize = 8;
-      for (let i = 0; i < matchesToFetch.length; i += batchSize) {
-        const batch = matchesToFetch.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batch.map(async (match) => {
-            try {
-              const detailRes = await fetch(
-                `/api/football/match?id=${match.id}`
-              );
-              if (detailRes.ok) {
-                return await detailRes.json();
-              }
-              return match; // fallback to list data
-            } catch {
-              return match;
-            }
-          })
-        );
-        detailedMatches.push(...batchResults);
-        setDetailProgress({
-          loaded: Math.min(i + batchSize, matchesToFetch.length),
-          total: matchesToFetch.length,
-        });
-
-        // Rate limit delay between batches (except last)
-        if (i + batchSize < matchesToFetch.length) {
-          await new Promise((resolve) => setTimeout(resolve, 1200));
-        }
-      }
-
-      setLoadingDetail(false);
-      const result = analyzeBookings(detailedMatches);
-      setAnalytics(result);
+      const url = competition
+        ? `/api/football/bookings?competition=${competition}`
+        : "/api/football/bookings";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data: BookingAnalytics = await res.json();
+      setAnalytics(data);
     } catch {
-      setError("Failed to load booking data. Check your API key.");
+      setError("Failed to load booking analytics");
     } finally {
       setLoading(false);
     }
@@ -102,9 +48,10 @@ export default function BookingsPage() {
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: "overview", label: "Overview", icon: "📊" },
-    { key: "players", label: "Player Cards", icon: "👤" },
     { key: "referees", label: "Referee Strictness", icon: "👨‍⚖️" },
     { key: "teams", label: "Team Discipline", icon: "🏟️" },
+    { key: "players", label: "Player Cards", icon: "👤" },
+    { key: "matches", label: "High-Card Matches", icon: "🔥" },
   ];
 
   return (
@@ -114,19 +61,19 @@ export default function BookingsPage() {
           Booking <span className="text-yellow-400">Analytics</span>
         </h1>
         <p className="text-gray-500 text-sm">
-          Deep analysis of player cards, referee patterns, and team discipline
+          Referee strictness, team discipline, card patterns — from CSV match data
         </p>
       </div>
 
-      <LeagueSelector selected={competition} onChange={setCompetition} />
+      <LeagueSelector selected={competition} onChange={setCompetition} showAll />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-900 rounded-xl p-1">
+      <div className="flex gap-1 bg-gray-900 rounded-xl p-1 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === tab.key
                 ? "bg-gray-800 text-white shadow"
                 : "text-gray-500 hover:text-gray-300"
@@ -144,50 +91,19 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {loading || loadingDetail ? (
-        <div className="space-y-6">
-          {loadingDetail && (
-            <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-400">
-                  Loading match details for booking data...
-                </span>
-                <span className="text-sm text-emerald-400 font-medium">
-                  {detailProgress.loaded}/{detailProgress.total}
-                </span>
-              </div>
-              <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${
-                      detailProgress.total > 0
-                        ? (detailProgress.loaded / detailProgress.total) * 100
-                        : 0
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
-          )}
-          <LoadingSkeleton rows={8} />
-        </div>
-      ) : analytics ? (
+      {loading ? (
+        <LoadingSkeleton rows={8} />
+      ) : analytics && analytics.totalMatchesAnalyzed > 0 ? (
         <>
           {activeTab === "overview" && <OverviewTab analytics={analytics} />}
-          {activeTab === "players" && (
-            <PlayersTab players={analytics.playerProfiles} />
-          )}
-          {activeTab === "referees" && (
-            <RefereesTab referees={analytics.refereeProfiles} />
-          )}
-          {activeTab === "teams" && (
-            <TeamsTab teams={analytics.teamDiscipline} />
-          )}
+          {activeTab === "referees" && <RefereesTab referees={analytics.refereeStats} />}
+          {activeTab === "teams" && <TeamsTab teams={analytics.teamDiscipline} avgCards={analytics.averageCardsPerMatch} />}
+          {activeTab === "players" && <PlayersTab players={analytics.playerStats} />}
+          {activeTab === "matches" && <HighCardMatchesTab matches={analytics.highCardMatches} />}
         </>
       ) : (
         <div className="text-gray-500 text-center py-12">
-          No booking data available for this competition
+          No booking data available. CSV data may still be loading.
         </div>
       )}
     </div>
@@ -208,292 +124,231 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
           color="emerald"
         />
         <StatCard
-          label="Total Bookings"
-          value={analytics.totalBookings}
+          label="Total Yellow Cards"
+          value={analytics.totalYellowCards}
           icon="🟨"
           color="yellow"
         />
         <StatCard
+          label="Total Red Cards"
+          value={analytics.totalRedCards}
+          icon="🟥"
+          color="red"
+        />
+        <StatCard
           label="Avg Cards/Match"
-          value={analytics.averageBookingsPerMatch}
+          value={analytics.averageCardsPerMatch}
           icon="📊"
           color="blue"
         />
+      </div>
+
+      {/* Second row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
-          label="Red Cards"
-          value={analytics.playerProfiles.reduce(
-            (sum, p) => sum + p.totalReds,
-            0
-          )}
-          icon="🟥"
-          color="red"
+          label="Avg Fouls/Match"
+          value={analytics.averageFoulsPerMatch}
+          icon="⚡"
+          color="gray"
+          sublabel="across all matches"
+        />
+        <StatCard
+          label="Fouls per Card"
+          value={analytics.averageFoulsPerCard}
+          icon="📐"
+          color="emerald"
+          sublabel="fouls needed for a card"
+        />
+        <StatCard
+          label="Referees Tracked"
+          value={analytics.refereeStats.length}
+          icon="👨‍⚖️"
+          color="blue"
+          sublabel="unique match officials"
         />
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Bookings by minute range */}
+        {/* Card distribution */}
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-300 mb-4">
-            Cards by Time Period
+            Card Distribution (per match)
           </h3>
           <BarChart
-            data={analytics.bookingsByMinuteRange.map((r) => ({
-              label: r.range,
-              value: r.count,
-              color:
-                r.range.includes("76") || r.range.includes("61")
-                  ? "#ef4444"
-                  : r.range.includes("46") || r.range.includes("31")
-                  ? "#f59e0b"
-                  : "#10b981",
+            data={analytics.cardDistribution.map((d) => ({
+              label: `${d.range} cards`,
+              value: d.total,
+              color: d.range === "10+" ? "#ef4444" : d.range === "8-9" ? "#f59e0b" : "#10b981",
             }))}
             height={180}
           />
           <p className="text-xs text-gray-600 mt-3">
-            Cards tend to cluster in the second half as fatigue and desperation
-            increase
+            Number of matches in each total-cards bracket
           </p>
         </div>
 
-        {/* Half comparison */}
+        {/* Home vs Away */}
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-300 mb-4">
-            First Half vs Second Half
+            Home vs Away Cards
           </h3>
-          <div className="flex items-center gap-6 mt-8">
-            <div className="flex-1 text-center">
-              <div className="text-4xl font-bold text-emerald-400">
-                {analytics.bookingsByHalf.firstHalf}
+          <div className="grid grid-cols-2 gap-6 mt-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-400">
+                {analytics.homeVsAway.homeYellows}
               </div>
-              <div className="text-sm text-gray-500 mt-1">1st Half</div>
-              <div className="text-xs text-gray-600">
-                {analytics.totalBookings > 0
-                  ? `${Math.round(
-                      (analytics.bookingsByHalf.firstHalf /
-                        analytics.totalBookings) *
-                        100
-                    )}%`
-                  : "0%"}
+              <div className="text-sm text-gray-500 mt-1">Home 🟨</div>
+              <div className="text-xl font-bold text-red-400 mt-2">
+                {analytics.homeVsAway.homeReds}
               </div>
+              <div className="text-sm text-gray-500">Home 🟥</div>
             </div>
-            <div className="text-gray-700 text-2xl font-light">vs</div>
-            <div className="flex-1 text-center">
-              <div className="text-4xl font-bold text-yellow-400">
-                {analytics.bookingsByHalf.secondHalf}
+            <div className="text-center">
+              <div className="text-3xl font-bold text-yellow-400">
+                {analytics.homeVsAway.awayYellows}
               </div>
-              <div className="text-sm text-gray-500 mt-1">2nd Half</div>
-              <div className="text-xs text-gray-600">
-                {analytics.totalBookings > 0
-                  ? `${Math.round(
-                      (analytics.bookingsByHalf.secondHalf /
-                        analytics.totalBookings) *
-                        100
-                    )}%`
-                  : "0%"}
+              <div className="text-sm text-gray-500 mt-1">Away 🟨</div>
+              <div className="text-xl font-bold text-red-400 mt-2">
+                {analytics.homeVsAway.awayReds}
               </div>
+              <div className="text-sm text-gray-500">Away 🟥</div>
             </div>
           </div>
 
-          {/* Visual split bar */}
-          <div className="mt-6 h-4 bg-gray-800 rounded-full overflow-hidden flex">
-            <div
-              className="bg-emerald-500 transition-all"
-              style={{
-                width: `${
-                  analytics.totalBookings > 0
-                    ? (analytics.bookingsByHalf.firstHalf /
-                        analytics.totalBookings) *
-                      100
-                    : 50
-                }%`,
-              }}
-            />
-            <div
-              className="bg-yellow-500 transition-all"
-              style={{
-                width: `${
-                  analytics.totalBookings > 0
-                    ? (analytics.bookingsByHalf.secondHalf /
-                        analytics.totalBookings) *
-                      100
-                    : 50
-                }%`,
-              }}
-            />
+          {/* Split bar */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+              <span>Home yellows</span>
+              <span>Away yellows</span>
+            </div>
+            <div className="h-3 bg-gray-800 rounded-full overflow-hidden flex">
+              <div
+                className="bg-blue-500 transition-all"
+                style={{
+                  width: `${
+                    (analytics.homeVsAway.homeYellows /
+                      Math.max(analytics.homeVsAway.homeYellows + analytics.homeVsAway.awayYellows, 1)) *
+                    100
+                  }%`,
+                }}
+              />
+              <div
+                className="bg-yellow-500 transition-all"
+                style={{
+                  width: `${
+                    (analytics.homeVsAway.awayYellows /
+                      Math.max(analytics.homeVsAway.homeYellows + analytics.homeVsAway.awayYellows, 1)) *
+                    100
+                  }%`,
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Top booked players & strictest refs preview */}
+      {/* Cards by match result + monthly trends */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-300 mb-4">
-            Most Booked Players
+            Avg Cards by Match Result
+          </h3>
+          <BarChart
+            data={[
+              { label: "Home Win", value: analytics.cardsByMatchResult.homeWin, color: "#3b82f6" },
+              { label: "Draw", value: analytics.cardsByMatchResult.draw, color: "#6b7280" },
+              { label: "Away Win", value: analytics.cardsByMatchResult.awayWin, color: "#f59e0b" },
+            ]}
+            height={160}
+          />
+          <p className="text-xs text-gray-600 mt-3">
+            Average cards per match grouped by final result
+          </p>
+        </div>
+
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+            Monthly Card Trends
+          </h3>
+          {analytics.monthlyTrends.length > 0 ? (
+            <BarChart
+              data={analytics.monthlyTrends.map((t) => ({
+                label: t.month.slice(5), // MM
+                value: t.avgCards,
+                color: t.avgCards > analytics.averageCardsPerMatch ? "#ef4444" : "#10b981",
+              }))}
+              height={160}
+            />
+          ) : (
+            <div className="text-gray-500 text-sm text-center py-8">
+              Insufficient data for trends
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick previews */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+            Strictest Referees (top 8)
           </h3>
           <HorizontalBar
-            items={analytics.playerProfiles.slice(0, 8).map((p) => ({
-              label: p.playerName,
-              value: p.totalCards,
-              sublabel: `${p.totalYellows}🟨 ${p.totalReds > 0 ? `${p.totalReds}🟥` : ""}`,
-              color: p.totalReds > 0 ? "#ef4444" : "#eab308",
-            }))}
+            items={analytics.refereeStats
+              .filter((r) => r.matchesOfficiated >= 2)
+              .slice(0, 8)
+              .map((r) => ({
+                label: r.name,
+                value: r.cardsPerMatch,
+                sublabel: `${r.matchesOfficiated} matches`,
+                color:
+                  r.strictnessRating === "Very Strict" ? "#ef4444" :
+                  r.strictnessRating === "Strict" ? "#f59e0b" :
+                  r.strictnessRating === "Moderate" ? "#3b82f6" : "#10b981",
+              }))}
           />
         </div>
 
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-300 mb-4">
-            Strictest Referees
+            Least Disciplined Teams (top 8)
           </h3>
           <HorizontalBar
-            items={analytics.refereeProfiles
-              .filter((r) => r.matchesOfficiated >= 2)
+            items={analytics.teamDiscipline
+              .filter((t) => t.matchesPlayed >= 3)
               .slice(0, 8)
-              .map((r) => ({
-                label: r.refereeName,
-                value: r.cardsPerMatch,
-                sublabel: `${r.matchesOfficiated} matches`,
-                color:
-                  r.strictnessRating === "Very Strict"
-                    ? "#ef4444"
-                    : r.strictnessRating === "Strict"
-                    ? "#f59e0b"
-                    : r.strictnessRating === "Moderate"
-                    ? "#3b82f6"
-                    : "#10b981",
+              .map((t) => ({
+                label: t.team,
+                value: t.cardsPerMatch,
+                sublabel: `${t.totalCards} total`,
+                color: t.cardsPerMatch >= 2.5 ? "#ef4444" : t.cardsPerMatch >= 1.5 ? "#f59e0b" : "#10b981",
               }))}
           />
         </div>
       </div>
-    </div>
-  );
-}
 
-// ── Players Tab ──
-
-function PlayersTab({ players }: { players: PlayerBookingProfile[] }) {
-  const [sortBy, setSortBy] = useState<"totalCards" | "bookingRate" | "averageMinute">(
-    "totalCards"
-  );
-
-  const sorted = [...players].sort((a, b) => {
-    if (sortBy === "bookingRate") return b.bookingRate - a.bookingRate;
-    if (sortBy === "averageMinute") return a.averageMinute - b.averageMinute;
-    return b.totalCards - a.totalCards;
-  });
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Player Booking Profiles</h2>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-          className="bg-gray-800 border border-gray-700 text-sm text-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-        >
-          <option value="totalCards">Total Cards</option>
-          <option value="bookingRate">Cards per Match</option>
-          <option value="averageMinute">Earliest Average Minute</option>
-        </select>
-      </div>
-
-      <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
-                <th className="px-4 py-3 text-left w-10">#</th>
-                <th className="px-4 py-3 text-left">Player</th>
-                <th className="px-4 py-3 text-left">Team</th>
-                <th className="px-4 py-3 text-center">🟨</th>
-                <th className="px-4 py-3 text-center">🟥</th>
-                <th className="px-4 py-3 text-center">Total</th>
-                <th className="px-4 py-3 text-center">Rate</th>
-                <th className="px-4 py-3 text-center">Avg Min</th>
-                <th className="px-4 py-3 text-left">Card Timeline</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.slice(0, 30).map((player, i) => (
-                <tr
-                  key={player.playerId}
-                  className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
-                >
-                  <td className="px-4 py-3 text-gray-500">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-white">
-                    {player.playerName}
-                  </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
-                    {player.teamName}
-                  </td>
-                  <td className="px-4 py-3 text-center text-yellow-400 font-medium">
-                    {player.totalYellows}
-                  </td>
-                  <td className="px-4 py-3 text-center text-red-400 font-medium">
-                    {player.totalReds || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-white">
-                    {player.totalCards}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        player.bookingRate >= 1.5
-                          ? "bg-red-500/20 text-red-400"
-                          : player.bookingRate >= 1
-                          ? "bg-yellow-500/20 text-yellow-400"
-                          : "bg-gray-700 text-gray-400"
-                      }`}
-                    >
-                      {player.bookingRate.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-400">
-                    {player.averageMinute}&apos;
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-0.5">
-                      {player.cardMinutes.map((min, j) => (
-                        <span
-                          key={j}
-                          className="inline-block w-1.5 h-4 rounded-sm"
-                          style={{
-                            backgroundColor: `hsl(${
-                              120 - (min / 90) * 120
-                            }, 70%, 50%)`,
-                            opacity: 0.7 + (min / 90) * 0.3,
-                          }}
-                          title={`${min}'`}
-                        />
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Booking likelihood factors */}
+      {/* Insights panel */}
       <div className="bg-gradient-to-br from-yellow-500/10 to-red-500/10 border border-yellow-500/20 rounded-xl p-5">
-        <h3 className="font-semibold text-yellow-400 mb-2">
+        <h3 className="font-semibold text-yellow-400 mb-3">
           Booking Likelihood Factors
         </h3>
         <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-400">
           <div>
-            <div className="text-white font-medium mb-1">Position</div>
-            Defensive midfielders and full-backs are statistically the most
-            booked positions due to tactical fouling.
+            <div className="text-white font-medium mb-1">Referee Impact</div>
+            The strictest referees average {analytics.refereeStats[0]?.cardsPerMatch || "N/A"} cards/match
+            — the most lenient average {analytics.refereeStats[analytics.refereeStats.length - 1]?.cardsPerMatch || "N/A"}.
+            The referee is the single biggest predictive factor for card volume.
+          </div>
+          <div>
+            <div className="text-white font-medium mb-1">Home vs Away</div>
+            Away teams receive {analytics.homeVsAway.awayYellows > analytics.homeVsAway.homeYellows ? "more" : "fewer"} yellows
+            ({analytics.homeVsAway.awayYellows} vs {analytics.homeVsAway.homeYellows}),
+            consistent with the away-team discipline penalty seen across leagues.
           </div>
           <div>
             <div className="text-white font-medium mb-1">Match Context</div>
-            Derbies, relegation battles, and knockout games see 30-40% more
-            cards than average fixtures.
-          </div>
-          <div>
-            <div className="text-white font-medium mb-1">Timing</div>
-            75% of red cards come in the second half. The 75-90 minute window
-            is the highest-risk period for bookings.
+            Draws average {analytics.cardsByMatchResult.draw} cards/match vs {analytics.cardsByMatchResult.homeWin} in
+            home wins — tight, contested matches generate more cards as teams fight for every ball.
           </div>
         </div>
       </div>
@@ -503,8 +358,8 @@ function PlayersTab({ players }: { players: PlayerBookingProfile[] }) {
 
 // ── Referees Tab ──
 
-function RefereesTab({ referees }: { referees: RefereeProfile[] }) {
-  const qualifiedRefs = referees.filter((r) => r.matchesOfficiated >= 1);
+function RefereesTab({ referees }: { referees: RefereeStats[] }) {
+  const qualified = referees.filter((r) => r.matchesOfficiated >= 1);
 
   return (
     <div className="space-y-6">
@@ -512,33 +367,20 @@ function RefereesTab({ referees }: { referees: RefereeProfile[] }) {
 
       {/* Strictness distribution */}
       <div className="grid grid-cols-4 gap-3">
-        {(["Lenient", "Moderate", "Strict", "Very Strict"] as const).map(
-          (rating) => {
-            const count = qualifiedRefs.filter(
-              (r) => r.strictnessRating === rating
-            ).length;
-            const colors = {
-              Lenient: "emerald",
-              Moderate: "blue",
-              Strict: "yellow",
-              "Very Strict": "red",
-            } as const;
-            return (
-              <StatCard
-                key={rating}
-                label={rating}
-                value={count}
-                color={colors[rating]}
-                sublabel="referees"
-              />
-            );
-          }
-        )}
+        {(["Lenient", "Moderate", "Strict", "Very Strict"] as const).map((rating) => {
+          const count = qualified.filter((r) => r.strictnessRating === rating).length;
+          const colors = {
+            Lenient: "emerald", Moderate: "blue", Strict: "yellow", "Very Strict": "red",
+          } as const;
+          return (
+            <StatCard key={rating} label={rating} value={count} color={colors[rating]} sublabel="referees" />
+          );
+        })}
       </div>
 
       {/* Referee cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {qualifiedRefs.map((ref) => {
+        {qualified.map((ref) => {
           const ratingColors = {
             Lenient: "border-emerald-500/30 bg-emerald-500/5",
             Moderate: "border-blue-500/30 bg-blue-500/5",
@@ -553,90 +395,82 @@ function RefereesTab({ referees }: { referees: RefereeProfile[] }) {
           };
 
           return (
-            <div
-              key={ref.refereeId}
-              className={`border rounded-xl p-4 ${ratingColors[ref.strictnessRating]}`}
-            >
+            <div key={ref.name} className={`border rounded-xl p-4 ${ratingColors[ref.strictnessRating]}`}>
               <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="font-semibold text-white">
-                    {ref.refereeName}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {ref.nationality}
-                  </div>
-                </div>
-                <span
-                  className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    badgeColors[ref.strictnessRating]
-                  }`}
-                >
+                <div className="font-semibold text-white">{ref.name}</div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${badgeColors[ref.strictnessRating]}`}>
                   {ref.strictnessRating}
                 </span>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="grid grid-cols-4 gap-2 text-center">
                 <div>
-                  <div className="text-lg font-bold text-white">
-                    {ref.matchesOfficiated}
-                  </div>
-                  <div className="text-[10px] text-gray-500 uppercase">
-                    Matches
-                  </div>
+                  <div className="text-lg font-bold text-white">{ref.matchesOfficiated}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Matches</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-yellow-400">
-                    {ref.totalYellows}
-                  </div>
-                  <div className="text-[10px] text-gray-500 uppercase">
-                    Yellows
-                  </div>
+                  <div className="text-lg font-bold text-yellow-400">{ref.totalYellows}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Yellows</div>
                 </div>
                 <div>
-                  <div className="text-lg font-bold text-red-400">
-                    {ref.totalReds}
-                  </div>
-                  <div className="text-[10px] text-gray-500 uppercase">
-                    Reds
-                  </div>
+                  <div className="text-lg font-bold text-red-400">{ref.totalReds}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Reds</div>
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-emerald-400">{ref.foulsPerMatch}</div>
+                  <div className="text-[10px] text-gray-500 uppercase">Fouls/M</div>
                 </div>
               </div>
 
               <div className="mt-3 pt-3 border-t border-gray-800">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-500">Cards/Match</span>
-                  <span className="text-sm font-bold text-white">
-                    {ref.cardsPerMatch}
-                  </span>
+                  <span className="text-sm font-bold text-white">{ref.cardsPerMatch}</span>
                 </div>
-                {/* Visual indicator */}
-                <div className="mt-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-full"
+                    className="h-full rounded-full transition-all"
                     style={{
                       width: `${Math.min((ref.cardsPerMatch / 8) * 100, 100)}%`,
                       backgroundColor:
-                        ref.cardsPerMatch > 6
-                          ? "#ef4444"
-                          : ref.cardsPerMatch > 4.5
-                          ? "#f59e0b"
-                          : ref.cardsPerMatch > 3
-                          ? "#3b82f6"
-                          : "#10b981",
+                        ref.cardsPerMatch > 6 ? "#ef4444" :
+                        ref.cardsPerMatch > 4.5 ? "#f59e0b" :
+                        ref.cardsPerMatch > 3 ? "#3b82f6" : "#10b981",
                     }}
                   />
                 </div>
+
+                {/* Home/away bias */}
+                <div className="mt-2 flex items-center justify-between text-[10px] text-gray-500">
+                  <span>Home card rate: {Math.round(ref.homeYellowRate * 100)}%</span>
+                  <span>Away card rate: {Math.round(ref.awayYellowRate * 100)}%</span>
+                </div>
               </div>
+
+              {/* Recent form sparkline */}
+              {ref.recentForm.length > 0 && (
+                <div className="mt-2 flex gap-0.5 items-end h-6">
+                  {ref.recentForm.map((cards, i) => (
+                    <div
+                      key={i}
+                      className="flex-1 rounded-t-sm"
+                      style={{
+                        height: `${Math.min((cards / 10) * 100, 100)}%`,
+                        backgroundColor: cards > 6 ? "#ef4444" : cards > 4 ? "#f59e0b" : "#10b981",
+                        minHeight: 2,
+                      }}
+                      title={`${cards} cards`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      {qualifiedRefs.length === 0 && (
-        <div className="text-gray-500 text-center py-12">
-          No referee data available. Referee data requires individual match
-          details to be loaded.
-        </div>
+      {qualified.length === 0 && (
+        <div className="text-gray-500 text-center py-12">No referee data available</div>
       )}
     </div>
   );
@@ -644,12 +478,11 @@ function RefereesTab({ referees }: { referees: RefereeProfile[] }) {
 
 // ── Teams Tab ──
 
-function TeamsTab({ teams }: { teams: TeamDiscipline[] }) {
+function TeamsTab({ teams, avgCards }: { teams: TeamDiscipline[]; avgCards: number }) {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Team Discipline Rankings</h2>
 
-      {/* Team discipline table */}
       <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -657,75 +490,52 @@ function TeamsTab({ teams }: { teams: TeamDiscipline[] }) {
               <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
                 <th className="px-4 py-3 text-left w-10">#</th>
                 <th className="px-4 py-3 text-left">Team</th>
-                <th className="px-4 py-3 text-center">Matches</th>
+                <th className="px-4 py-3 text-center">P</th>
                 <th className="px-4 py-3 text-center">🟨</th>
                 <th className="px-4 py-3 text-center">🟥</th>
                 <th className="px-4 py-3 text-center">Total</th>
-                <th className="px-4 py-3 text-center">Per Match</th>
-                <th className="px-4 py-3 text-left">Discipline Bar</th>
+                <th className="px-4 py-3 text-center">Cards/M</th>
+                <th className="px-4 py-3 text-center">Fouls/M</th>
+                <th className="px-4 py-3 text-center">Fouls/Card</th>
+                <th className="px-4 py-3 text-center">Home</th>
+                <th className="px-4 py-3 text-center">Away</th>
+                <th className="px-4 py-3 text-left w-32">Discipline</th>
               </tr>
             </thead>
             <tbody>
               {teams.map((team, i) => (
                 <tr
-                  key={team.teamId}
+                  key={team.team}
                   className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
                 >
                   <td className="px-4 py-3 text-gray-500">{i + 1}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {team.teamCrest && (
-                        <img
-                          src={team.teamCrest}
-                          alt=""
-                          className="w-5 h-5 object-contain"
-                        />
-                      )}
-                      <span className="font-medium text-white">
-                        {team.teamName}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center text-gray-400">
-                    {team.matchesPlayed}
-                  </td>
-                  <td className="px-4 py-3 text-center text-yellow-400 font-medium">
-                    {team.totalYellows}
-                  </td>
-                  <td className="px-4 py-3 text-center text-red-400 font-medium">
-                    {team.totalReds || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-center font-bold text-white">
-                    {team.totalCards}
-                  </td>
+                  <td className="px-4 py-3 font-medium text-white">{team.team}</td>
+                  <td className="px-4 py-3 text-center text-gray-400">{team.matchesPlayed}</td>
+                  <td className="px-4 py-3 text-center text-yellow-400 font-medium">{team.totalYellows}</td>
+                  <td className="px-4 py-3 text-center text-red-400 font-medium">{team.totalReds || "-"}</td>
+                  <td className="px-4 py-3 text-center font-bold text-white">{team.totalCards}</td>
                   <td className="px-4 py-3 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        team.cardsPerMatch >= 3
-                          ? "bg-red-500/20 text-red-400"
-                          : team.cardsPerMatch >= 2
-                          ? "bg-yellow-500/20 text-yellow-400"
-                          : "bg-emerald-500/20 text-emerald-400"
-                      }`}
-                    >
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      team.cardsPerMatch >= avgCards * 1.2 ? "bg-red-500/20 text-red-400" :
+                      team.cardsPerMatch >= avgCards * 0.8 ? "bg-yellow-500/20 text-yellow-400" :
+                      "bg-emerald-500/20 text-emerald-400"
+                    }`}>
                       {team.cardsPerMatch}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-center text-gray-400">{team.foulsPerMatch}</td>
+                  <td className="px-4 py-3 text-center text-gray-400">{team.foulsPerCard}</td>
+                  <td className="px-4 py-3 text-center text-gray-400 text-xs">{team.homeCardRate}/m</td>
+                  <td className="px-4 py-3 text-center text-gray-400 text-xs">{team.awayCardRate}/m</td>
                   <td className="px-4 py-3">
                     <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full"
                         style={{
-                          width: `${Math.min(
-                            (team.cardsPerMatch / 4) * 100,
-                            100
-                          )}%`,
+                          width: `${Math.min((team.cardsPerMatch / 4) * 100, 100)}%`,
                           backgroundColor:
-                            team.cardsPerMatch >= 3
-                              ? "#ef4444"
-                              : team.cardsPerMatch >= 2
-                              ? "#f59e0b"
-                              : "#10b981",
+                            team.cardsPerMatch >= 3 ? "#ef4444" :
+                            team.cardsPerMatch >= 2 ? "#f59e0b" : "#10b981",
                         }}
                       />
                     </div>
@@ -736,38 +546,238 @@ function TeamsTab({ teams }: { teams: TeamDiscipline[] }) {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Most booked players per team */}
-      {teams.slice(0, 6).map(
-        (team) =>
-          team.mostBookedPlayers.length > 0 && (
-            <div
-              key={team.teamId}
-              className="bg-gray-900/50 border border-gray-800 rounded-xl p-5"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                {team.teamCrest && (
-                  <img
-                    src={team.teamCrest}
-                    alt=""
-                    className="w-6 h-6 object-contain"
-                  />
-                )}
-                <h3 className="text-sm font-semibold text-white">
-                  {team.teamName} — Most Booked Players
-                </h3>
-              </div>
-              <HorizontalBar
-                items={team.mostBookedPlayers.map((p) => ({
-                  label: p.playerName,
-                  value: p.totalCards,
-                  sublabel: `${p.totalYellows}🟨 ${p.totalReds > 0 ? `${p.totalReds}🟥` : ""}`,
-                  color: p.totalReds > 0 ? "#ef4444" : "#eab308",
-                }))}
-              />
-            </div>
-          )
+// ── Players Tab ──
+
+function PlayersTab({ players }: { players: PlayerStats[] }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [playerData, setPlayerData] = useState<PlayerStats[]>(players);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+
+  // Load persisted player stats
+  useEffect(() => {
+    fetch("/api/football/players")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.players && data.players.length > 0) {
+          setPlayerData(data.players);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadStatus(null);
+
+    try {
+      const text = await file.text();
+      const res = await fetch("/api/football/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csv: text }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUploadStatus(`Loaded ${data.count} players with card data`);
+        // Refresh
+        const refreshRes = await fetch("/api/football/players");
+        const refreshData = await refreshRes.json();
+        setPlayerData(refreshData.players || []);
+      } else {
+        setUploadStatus(`Error: ${data.error}`);
+      }
+    } catch {
+      setUploadStatus("Failed to upload file");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <h2 className="text-lg font-semibold">Player Card Profiles</h2>
+        <div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-400 transition-colors disabled:opacity-50"
+          >
+            {uploading ? "Uploading..." : "Upload Player CSV"}
+          </button>
+        </div>
+      </div>
+
+      {uploadStatus && (
+        <div className={`text-sm rounded-xl p-3 ${
+          uploadStatus.startsWith("Error") ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+        }`}>
+          {uploadStatus}
+        </div>
       )}
+
+      {playerData.length > 0 ? (
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
+                  <th className="px-3 py-3 text-left w-8">#</th>
+                  <th className="px-3 py-3 text-left">Player</th>
+                  <th className="px-3 py-3 text-left">Team</th>
+                  <th className="px-3 py-3 text-center">Pos</th>
+                  <th className="px-3 py-3 text-center">MP</th>
+                  <th className="px-3 py-3 text-center">Min</th>
+                  <th className="px-3 py-3 text-center">🟨</th>
+                  <th className="px-3 py-3 text-center">🟥</th>
+                  <th className="px-3 py-3 text-center">Total</th>
+                  <th className="px-3 py-3 text-center">Cards/Match</th>
+                  <th className="px-3 py-3 text-center">Cards/90</th>
+                  <th className="px-3 py-3 text-center">Min/Card</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerData.slice(0, 50).map((player, i) => (
+                  <tr
+                    key={`${player.player}-${player.squad}`}
+                    className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                  >
+                    <td className="px-3 py-3 text-gray-500">{i + 1}</td>
+                    <td className="px-3 py-3 font-medium text-white">{player.player}</td>
+                    <td className="px-3 py-3 text-gray-400 text-xs">{player.squad}</td>
+                    <td className="px-3 py-3 text-center text-gray-400 text-xs">{player.position}</td>
+                    <td className="px-3 py-3 text-center text-gray-400">{player.matchesPlayed}</td>
+                    <td className="px-3 py-3 text-center text-gray-400">{player.minutes}</td>
+                    <td className="px-3 py-3 text-center text-yellow-400 font-medium">{player.yellowCards}</td>
+                    <td className="px-3 py-3 text-center text-red-400 font-medium">{player.redCards || "-"}</td>
+                    <td className="px-3 py-3 text-center font-bold text-white">{player.totalCards}</td>
+                    <td className="px-3 py-3 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        player.cardsPerMatch >= 0.5 ? "bg-red-500/20 text-red-400" :
+                        player.cardsPerMatch >= 0.3 ? "bg-yellow-500/20 text-yellow-400" :
+                        "bg-gray-700 text-gray-400"
+                      }`}>
+                        {player.cardsPerMatch}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-400">{player.cardsPerNinety}</td>
+                    <td className="px-3 py-3 text-center text-gray-400">{player.minutesPerCard || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center">
+          <div className="text-3xl mb-3">📄</div>
+          <h3 className="text-white font-semibold mb-2">Upload Player Stats CSV</h3>
+          <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">
+            Individual player booking data requires a CSV file from{" "}
+            <a
+              href="https://www.kaggle.com/datasets/hubertsidorowicz/football-players-stats-2025-2026"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-400 hover:text-emerald-300"
+            >
+              Kaggle
+            </a>{" "}
+            or FBref. The CSV should include columns for Player, Squad, MP (Matches Played),
+            Min (Minutes), CrdY (Yellow Cards), and CrdR (Red Cards).
+          </p>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-5 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-400 transition-colors"
+          >
+            Choose CSV File
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── High-Card Matches Tab ──
+
+function HighCardMatchesTab({ matches }: { matches: MatchData[] }) {
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold">
+        Highest-Card Matches
+      </h2>
+      <p className="text-gray-500 text-sm">
+        Top 10 matches by total cards — the fiercest battles this season
+      </p>
+
+      <div className="space-y-3">
+        {matches.map((match, i) => (
+          <div
+            key={match.id}
+            className={`bg-gray-900/50 border rounded-xl p-4 ${
+              i === 0 ? "border-red-500/30 bg-red-500/5" :
+              i < 3 ? "border-yellow-500/20" : "border-gray-800"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className={`text-lg font-bold ${
+                  i === 0 ? "text-red-400" : i < 3 ? "text-yellow-400" : "text-gray-500"
+                }`}>
+                  #{i + 1}
+                </span>
+                <div>
+                  <div className="text-white font-medium">
+                    {match.homeTeam} {match.ftHomeGoals} - {match.ftAwayGoals} {match.awayTeam}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {match.date} • {match.league} • Ref: {match.referee}
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-yellow-400">
+                  {match.totalCards}
+                </div>
+                <div className="text-xs text-gray-500">total cards</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="text-gray-500 mb-1">{match.homeTeam}</div>
+                <div className="flex gap-3">
+                  <span className="text-yellow-400">🟨 {match.homeYellows}</span>
+                  <span className="text-red-400">🟥 {match.homeReds}</span>
+                  <span className="text-gray-400">⚡ {match.homeFouls} fouls</span>
+                </div>
+              </div>
+              <div className="bg-gray-800/50 rounded-lg p-2">
+                <div className="text-gray-500 mb-1">{match.awayTeam}</div>
+                <div className="flex gap-3">
+                  <span className="text-yellow-400">🟨 {match.awayYellows}</span>
+                  <span className="text-red-400">🟥 {match.awayReds}</span>
+                  <span className="text-gray-400">⚡ {match.awayFouls} fouls</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

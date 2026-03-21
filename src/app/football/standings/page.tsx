@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { Standing, StandingEntry, CompetitionCode } from "@/lib/football-types";
+import type { ComputedStanding, LeagueCode } from "@/lib/football-types";
 import LeagueSelector from "@/components/football/LeagueSelector";
 import LoadingSkeleton from "@/components/football/LoadingSkeleton";
 
 export default function StandingsPage() {
-  const [competition, setCompetition] = useState<CompetitionCode>("PL");
-  const [standings, setStandings] = useState<Standing[]>([]);
+  const [competition, setCompetition] = useState<LeagueCode>("E0");
+  const [standings, setStandings] = useState<ComputedStanding[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,14 +32,12 @@ export default function StandingsPage() {
     fetchStandings();
   }, [fetchStandings]);
 
-  const totalStanding = standings.find((s) => s.type === "TOTAL");
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold mb-1">League Standings</h1>
         <p className="text-gray-500 text-sm">
-          Current season tables for top European leagues
+          Tables computed from match result CSV data
         </p>
       </div>
 
@@ -53,74 +51,66 @@ export default function StandingsPage() {
 
       {loading ? (
         <LoadingSkeleton rows={20} />
-      ) : totalStanding ? (
+      ) : standings.length > 0 ? (
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
-                  <th className="px-4 py-3 text-left w-10">#</th>
-                  <th className="px-4 py-3 text-left">Team</th>
-                  <th className="px-4 py-3 text-center">P</th>
-                  <th className="px-4 py-3 text-center">W</th>
-                  <th className="px-4 py-3 text-center">D</th>
-                  <th className="px-4 py-3 text-center">L</th>
-                  <th className="px-4 py-3 text-center">GF</th>
-                  <th className="px-4 py-3 text-center">GA</th>
-                  <th className="px-4 py-3 text-center">GD</th>
-                  <th className="px-4 py-3 text-center font-bold">Pts</th>
-                  <th className="px-4 py-3 text-center">Form</th>
+                  <th className="px-3 py-3 text-left w-8">#</th>
+                  <th className="px-3 py-3 text-left">Team</th>
+                  <th className="px-3 py-3 text-center">P</th>
+                  <th className="px-3 py-3 text-center">W</th>
+                  <th className="px-3 py-3 text-center">D</th>
+                  <th className="px-3 py-3 text-center">L</th>
+                  <th className="px-3 py-3 text-center">GF</th>
+                  <th className="px-3 py-3 text-center">GA</th>
+                  <th className="px-3 py-3 text-center">GD</th>
+                  <th className="px-3 py-3 text-center font-bold">Pts</th>
+                  <th className="px-3 py-3 text-center">🟨</th>
+                  <th className="px-3 py-3 text-center">🟥</th>
+                  <th className="px-3 py-3 text-center">Cards/M</th>
+                  <th className="px-3 py-3 text-center">Form</th>
                 </tr>
               </thead>
               <tbody>
-                {totalStanding.table.map((entry: StandingEntry, i: number) => (
+                {standings.map((entry, i) => (
                   <tr
-                    key={entry.team.id}
+                    key={entry.team}
                     className={`border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors ${
                       i < 4
                         ? "border-l-2 border-l-emerald-500"
-                        : i >= totalStanding.table.length - 3
+                        : i >= standings.length - 3
                         ? "border-l-2 border-l-red-500"
                         : ""
                     }`}
                   >
-                    <td className="px-4 py-3 text-gray-400 font-medium">
+                    <td className="px-3 py-3 text-gray-400 font-medium">
                       {entry.position}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        {entry.team.crest && (
-                          <img
-                            src={entry.team.crest}
-                            alt=""
-                            className="w-5 h-5 object-contain"
-                          />
-                        )}
-                        <span className="font-medium text-white">
-                          {entry.team.shortName || entry.team.name}
-                        </span>
-                      </div>
+                    <td className="px-3 py-3 font-medium text-white">
+                      {entry.team}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-400">
-                      {entry.playedGames}
+                    <td className="px-3 py-3 text-center text-gray-400">
+                      {entry.played}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-300">
+                    <td className="px-3 py-3 text-center text-gray-300">
                       {entry.won}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-400">
-                      {entry.draw}
+                    <td className="px-3 py-3 text-center text-gray-400">
+                      {entry.drawn}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-400">
+                    <td className="px-3 py-3 text-center text-gray-400">
                       {entry.lost}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-300">
+                    <td className="px-3 py-3 text-center text-gray-300">
                       {entry.goalsFor}
                     </td>
-                    <td className="px-4 py-3 text-center text-gray-400">
+                    <td className="px-3 py-3 text-center text-gray-400">
                       {entry.goalsAgainst}
                     </td>
                     <td
-                      className={`px-4 py-3 text-center font-medium ${
+                      className={`px-3 py-3 text-center font-medium ${
                         entry.goalDifference > 0
                           ? "text-emerald-400"
                           : entry.goalDifference < 0
@@ -131,12 +121,31 @@ export default function StandingsPage() {
                       {entry.goalDifference > 0 ? "+" : ""}
                       {entry.goalDifference}
                     </td>
-                    <td className="px-4 py-3 text-center font-bold text-white">
+                    <td className="px-3 py-3 text-center font-bold text-white">
                       {entry.points}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-3 text-center text-yellow-400 text-xs">
+                      {entry.totalYellows}
+                    </td>
+                    <td className="px-3 py-3 text-center text-red-400 text-xs">
+                      {entry.totalReds}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded ${
+                          entry.cardsPerMatch >= 2.5
+                            ? "bg-red-500/20 text-red-400"
+                            : entry.cardsPerMatch >= 1.5
+                            ? "bg-yellow-500/20 text-yellow-400"
+                            : "bg-emerald-500/20 text-emerald-400"
+                        }`}
+                      >
+                        {entry.cardsPerMatch}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-center">
                       <div className="flex gap-0.5 justify-center">
-                        {entry.form?.split(",").map((r, j) => (
+                        {entry.form.map((r, j) => (
                           <span
                             key={j}
                             className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold ${
@@ -171,7 +180,7 @@ export default function StandingsPage() {
         </div>
       ) : (
         <div className="text-gray-500 text-center py-12">
-          No standings data available
+          No standings data available for this league
         </div>
       )}
     </div>
