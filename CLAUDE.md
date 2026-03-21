@@ -1,26 +1,24 @@
-# CLAUDE.md — Flowerapp
+# CLAUDE.md — Football Analytics
 
 This file provides guidance for AI assistants (Claude, etc.) working in this repository.
 
 ## Project Overview
 
-**Flowerapp** is an AI-powered plant and flower identification web app. Users upload or capture a photo of any plant, and Claude's vision API identifies it — returning the common name, scientific name, care instructions, toxicity info, and fun facts.
+**Football Analytics** is a web app focused on **player bookings** across Europe's top football leagues. It analyzes referee strictness, team discipline, card distributions, and match-level booking data — all powered by publicly available CSV data (no API keys required).
 
-**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision) · Football CSV data (football-data.co.uk, GitHub, Kaggle)
+**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4
 
-## Football Analytics Module
+## Features
 
-The app includes a football analytics section focused on **player bookings** across Europe's top leagues. Features:
-
-- **Dashboard** (`/football`) — Today's matches, recent results, quick stats
-- **Standings** (`/football/standings`) — Live league tables for 9 European competitions
-- **Fixtures & Results** (`/football/fixtures`) — Browse upcoming fixtures and recent results by league
+- **Dashboard** (`/football`) — Latest results, upcoming fixtures, quick stats
+- **Standings** (`/football/standings`) — League tables computed from match results for 8 European leagues
+- **Fixtures & Results** (`/football/fixtures`) — Browse results and upcoming games by league
 - **Bookings Analytics** (`/football/bookings`) — The main focus:
-  - Player booking frequency and card-per-match rates
-  - Referee strictness ratings (Lenient → Very Strict) based on cards/match
-  - Team discipline rankings with per-match card averages
-  - Booking timing analysis (by half, by 15-minute windows)
-  - Card timeline visualizations for individual players
+  - Referee strictness ratings (Lenient → Very Strict) with home/away card bias
+  - Team discipline rankings with cards/match, fouls/match, fouls-per-card ratios
+  - Card distribution analysis (by match result, monthly trends, home vs away)
+  - High-card match rankings
+  - Player card profiles (via CSV upload from Kaggle/FBref)
 
 **Data sources (CSV-based, no API key required):**
 - [football-data.co.uk](https://www.football-data.co.uk) — Match result CSVs for all leagues (cards, fouls, referee, shots, corners)
@@ -37,46 +35,40 @@ Flowerapp/
 ├── package.json                       # Dependencies and scripts
 ├── tsconfig.json                      # TypeScript configuration
 ├── next.config.ts                     # Next.js configuration
+├── netlify.toml                       # Netlify deployment config
 ├── postcss.config.mjs                 # PostCSS / Tailwind CSS config
-├── .env.example                       # Environment variable template
 ├── .gitignore
 ├── public/                            # Static assets
 └── src/
     ├── app/
     │   ├── layout.tsx                 # Root layout with metadata
-    │   ├── page.tsx                   # Main page (client component, app shell)
+    │   ├── page.tsx                   # Redirects to /football
     │   ├── globals.css                # Global styles + Tailwind import
-    │   ├── api/
-    │   │   ├── identify/
-    │   │   │   └── route.ts           # POST /api/identify — Claude vision API
-    │   │   └── football/
-    │   │       ├── standings/route.ts  # GET — league standings proxy
-    │   │       ├── matches/route.ts   # GET — competition matches proxy
-    │   │       ├── match/route.ts     # GET — single match detail proxy
-    │   │       └── today/route.ts     # GET — today's matches proxy
+    │   ├── api/football/
+    │   │   ├── bookings/route.ts      # GET — booking analytics
+    │   │   ├── fixtures/route.ts      # GET — upcoming fixtures
+    │   │   ├── matches/route.ts       # GET — match results from CSV
+    │   │   ├── match/route.ts         # GET — single match lookup
+    │   │   ├── players/route.ts       # GET/POST — player stats CSV upload
+    │   │   ├── standings/route.ts     # GET — computed league standings
+    │   │   └── today/route.ts         # GET — today's matches
     │   └── football/
     │       ├── layout.tsx             # Football section layout (dark theme)
-    │       ├── page.tsx               # Dashboard — today's matches, quick stats
+    │       ├── page.tsx               # Dashboard — results, fixtures, stats
     │       ├── standings/page.tsx     # League standings tables
     │       ├── fixtures/page.tsx      # Fixtures & results browser
-    │       └── bookings/page.tsx      # Booking analytics dashboard
-    ├── components/
-    │   ├── ImageUploader.tsx           # Photo upload/capture with drag-and-drop
-    │   ├── LoadingSpinner.tsx          # Animated loading state
-    │   ├── PlantResult.tsx             # Plant identification result display
-    │   ├── HistoryPanel.tsx            # Recent identifications sidebar
-    │   └── football/
-    │       ├── FootballNav.tsx         # Football section navigation bar
-    │       ├── LeagueSelector.tsx      # Competition picker (9 leagues)
-    │       ├── MatchCard.tsx           # Match result/fixture card
-    │       ├── StatCard.tsx            # Metric stat card with gradient
-    │       ├── BarChart.tsx            # Vertical bar chart (CSS-based)
-    │       ├── HorizontalBar.tsx       # Horizontal bar chart component
-    │       └── LoadingSkeleton.tsx     # Animated loading placeholder
+    │       └── bookings/page.tsx      # Booking analytics dashboard (5 tabs)
+    ├── components/football/
+    │   ├── FootballNav.tsx            # Navigation bar
+    │   ├── LeagueSelector.tsx         # League picker (8 leagues)
+    │   ├── MatchCard.tsx              # Match result/fixture card
+    │   ├── StatCard.tsx               # Metric stat card with gradient
+    │   ├── BarChart.tsx               # Vertical bar chart (CSS-based)
+    │   ├── HorizontalBar.tsx          # Horizontal bar chart component
+    │   └── LoadingSkeleton.tsx        # Animated loading placeholder
     └── lib/
-        ├── types.ts                   # Plant identification types
-        ├── football-types.ts          # Football API + analytics types
-        ├── football-api.ts            # Football-Data.org API client with caching
+        ├── football-types.ts          # All TypeScript types and league definitions
+        ├── football-api.ts            # CSV fetcher, parser, caching, standings computation
         └── booking-analytics.ts       # Booking analytics engine
 ```
 
@@ -84,8 +76,9 @@ Flowerapp/
 
 1. Clone the repository
 2. `npm install`
-3. Copy `.env.example` to `.env` and add your Anthropic API key
-4. `npm run dev` — starts the dev server at http://localhost:3000
+3. `npm run dev` — starts the dev server at http://localhost:3000
+
+No API keys or environment variables required. All data is fetched from public CSV sources.
 
 ## Commands Reference
 
@@ -99,40 +92,20 @@ Flowerapp/
 
 ## Architecture
 
-### Frontend (Client Components)
-- **`page.tsx`** — Main app shell. Manages state for: current result, loading, errors, and identification history. Orchestrates the upload → identify → display flow.
-- **`ImageUploader`** — Handles file selection (click), camera capture (mobile), and drag-and-drop. Converts images to base64 and passes them up.
-- **`PlantResult`** — Renders the full identification card: hero image with overlay, confidence badge, care guide grid, fun facts, and toxicity warnings.
-- **`HistoryPanel`** — Horizontal scrollable list of recent identifications (kept in React state, max 10 items).
-- **`LoadingSpinner`** — Animated spinner shown during API calls.
-
-### Backend (API Route)
-- **`POST /api/identify`** — Accepts `{ image: string (base64), mediaType: string }`. Sends the image to Claude's vision API with a structured botanist prompt. Returns `{ plant: PlantIdentification }` as JSON.
-- Uses `claude-sonnet-4-20250514` model for vision identification.
-- The system prompt enforces strict JSON-only output matching the `PlantIdentification` type.
-
 ### Data Flow
 ```
-User uploads photo
-  → ImageUploader converts to base64
-  → page.tsx calls POST /api/identify
-  → API route sends image to Claude vision API
-  → Claude returns structured JSON identification
-  → PlantResult renders the result
-  → Result added to history
+football-data.co.uk CSV files
+  → Server-side fetch with 30-min cache
+  → CSV parser → MatchData[]
+  → Analytics engine computes referee/team/card stats
+  → API routes serve JSON to client
+  → React components render dashboards
 ```
 
-### Key Types (`src/lib/types.ts`)
-- **`PlantIdentification`** — The core data shape returned by the API: commonName, scientificName, family, confidence, description, careInfo, funFacts, isEdible, isToxic, toxicityNote.
-- **`IdentificationResult`** — Wraps PlantIdentification with imageUrl and timestamp for history tracking.
-
-## Environment & Configuration
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key from https://console.anthropic.com/ |
-
-The Anthropic API key is read automatically by the `@anthropic-ai/sdk` package. The football analytics module uses CSV data fetched from public URLs — no API key needed.
+### Key Libraries
+- `football-api.ts` — Fetches CSVs from public URLs, parses them, caches results in-memory (30 min TTL), and computes league standings from match results
+- `booking-analytics.ts` — Processes match data to build referee strictness profiles, team discipline rankings, card distributions, monthly trends, and match result correlations
+- `football-types.ts` — All TypeScript types: `MatchData`, `RefereeStats`, `TeamDiscipline`, `BookingAnalytics`, `PlayerStats`, `ComputedStanding`, etc.
 
 ## Development Workflow
 
@@ -161,4 +134,4 @@ The Anthropic API key is read automatically by the `@anthropic-ai/sdk` package. 
 5. **Don't guess** — If context is missing, ask the user rather than making assumptions
 6. **Test your work** — Run `npm run build` after making changes to verify compilation
 7. **Keep this file updated** — When adding new tools, scripts, or conventions, update CLAUDE.md accordingly
-8. **Respect the stack** — Use Tailwind for styling, App Router conventions for routing, and the Anthropic SDK for AI features
+8. **Respect the stack** — Use Tailwind for styling, App Router conventions for routing

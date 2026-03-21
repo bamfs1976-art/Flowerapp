@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Flowerapp — Plant & Flower Identifier",
+  title: "Football Analytics — Bookings, Standings & Insights",
   description:
-    "Take a photo of any plant or flower and instantly identify it with AI",
+    "European football analytics focused on player bookings, referee strictness, and team discipline across top leagues.",
 };
 
 export default function RootLayout({
