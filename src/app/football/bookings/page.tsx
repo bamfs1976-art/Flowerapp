@@ -947,28 +947,35 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
   const [autoFetching, setAutoFetching] = useState(true);
   const [dataSource, setDataSource] = useState<string | null>(null);
 
-  // Auto-fetch player data from Transfermarkt via Apify (client-side)
-  useEffect(() => {
+  const loadFromApify = useCallback(async () => {
     setAutoFetching(true);
     setDataSource(null);
-    fetchPlayersFromApify(competition)
-      .then((result) => {
-        if (result.count > 0) {
-          setPlayerData(result.players);
-          if (result.source === "apify") {
-            setDataSource(`Transfermarkt · ${result.count} players`);
-          } else if (result.source === "cache") {
-            setDataSource(`Transfermarkt (cached) · ${result.count} players`);
-          } else if (result.source === "server") {
-            setDataSource(`${result.count} players loaded`);
-          }
-        } else if (result.error) {
-          setUploadStatus(`Auto-fetch unavailable: ${result.error}`);
+    setUploadStatus(null);
+    try {
+      const result = await fetchPlayersFromApify(competition);
+      if (result.count > 0) {
+        setPlayerData(result.players);
+        if (result.source === "apify") {
+          setDataSource(`Transfermarkt · ${result.count} players`);
+        } else if (result.source === "cache") {
+          setDataSource(`Transfermarkt (cached) · ${result.count} players`);
+        } else if (result.source === "server") {
+          setDataSource(`${result.count} players loaded`);
         }
-      })
-      .catch(() => {})
-      .finally(() => setAutoFetching(false));
+      } else if (result.error) {
+        setUploadStatus(`Could not reach Transfermarkt — upload a CSV or try again when deployed`);
+      }
+    } catch {
+      setUploadStatus("Connection failed — this may work once deployed to production");
+    } finally {
+      setAutoFetching(false);
+    }
   }, [competition]);
+
+  // Auto-fetch on mount
+  useEffect(() => {
+    loadFromApify();
+  }, [loadFromApify]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1099,26 +1106,35 @@ function PlayersTab({ players, competition }: { players: PlayerStats[]; competit
         </div>
       ) : (
         <div className="glass-card rounded-2xl p-8 text-center">
-          <div className="text-3xl mb-3">📄</div>
-          <h3 className="text-white font-semibold mb-2">No Player Data Available</h3>
-          <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">
-            Player data auto-fetches from Transfermarkt when available. You can also upload a CSV from{" "}
-            <a
-              href="https://www.kaggle.com/datasets/hubertsidorowicz/football-players-stats-2025-2026"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-400 hover:text-emerald-300"
-            >
-              Kaggle
-            </a>{" "}
-            or FBref with columns: Player, Squad, MP, Min, CrdY, CrdR.
+          <div className="text-3xl mb-3">⚡</div>
+          <h3 className="text-white font-semibold mb-2">Player Card Data</h3>
+          <p className="text-gray-400 text-sm max-w-md mx-auto mb-5">
+            Auto-fetch pulls player card stats from Transfermarkt via Apify.
+            If the connection is blocked locally, it will work once deployed — or upload a CSV manually.
           </p>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-5 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-400 transition-colors"
-          >
-            Upload CSV Instead
-          </button>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={loadFromApify}
+              disabled={autoFetching}
+              className="px-5 py-2.5 bg-purple-500 text-white rounded-lg text-sm font-medium hover:bg-purple-400 transition-colors disabled:opacity-50"
+            >
+              {autoFetching ? "Fetching..." : "Retry Transfermarkt Fetch"}
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="px-5 py-2.5 border border-white/[0.1] text-white/50 hover:text-white/80 hover:border-white/20 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+            >
+              Upload CSV
+            </button>
+          </div>
+          <p className="text-white/20 text-[11px] mt-4">
+            CSV sources:{" "}
+            <a href="https://www.kaggle.com/datasets/hubertsidorowicz/football-players-stats-2025-2026" target="_blank" rel="noopener noreferrer" className="text-emerald-400/50 hover:text-emerald-400">Kaggle</a>
+            {" · "}
+            <a href="https://fbref.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400/50 hover:text-emerald-400">FBref</a>
+            {" — columns: Player, Squad, MP, Min, CrdY, CrdR"}
+          </p>
         </div>
       )}
     </div>
