@@ -84,4 +84,31 @@ export interface LeagueStanding {
   totalPoints: number;
 }
 
-export type TabId = "squad" | "transfers" | "fixtures" | "league" | "analytics";
+export interface Referee {
+  id: number;
+  name: string;
+  matchesOfficiated: number;
+  yellowCards: number;
+  redCards: number;
+  penalties: number;
+  penaltiesNotGiven: number;
+  yellowsPerGame: number;
+  pensPerGame: number;
+  totalFouls: number;
+  foulsPerGame: number;
+  nextMatch?: { homeTeam: string; awayTeam: string; gameweek: number };
+  recentMatches: RefereeMatch[];
+  cardStyle: "strict" | "lenient" | "average";
+}
+
+export interface RefereeMatch {
+  homeTeam: string;
+  awayTeam: string;
+  gameweek: number;
+  yellows: number;
+  reds: number;
+  penalties: number;
+  fouls: number;
+}
+
+export type TabId = "squad" | "transfers" | "fixtures" | "league" | "analytics" | "refs";
