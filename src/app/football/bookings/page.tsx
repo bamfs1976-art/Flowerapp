@@ -58,12 +58,12 @@ export default function BookingsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold mb-1">
+        <h1 className="text-[24px] font-bold tracking-tight mb-1">
           Booking <span className="text-yellow-400">Analytics</span>
         </h1>
-        <p className="text-gray-500 text-sm">
+        <p className="text-white/35 text-[13px]">
           Referee strictness, team discipline, card patterns — from CSV match data
         </p>
       </div>
@@ -71,15 +71,15 @@ export default function BookingsPage() {
       <LeagueSelector selected={competition} onChange={setCompetition} showAll />
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-900 rounded-xl p-1 overflow-x-auto">
+      <div className="flex gap-0.5 bg-white/[0.04] rounded-xl p-1 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+            className={`flex-shrink-0 px-4 py-2 rounded-lg text-[13px] font-medium transition-all duration-200 whitespace-nowrap ${
               activeTab === tab.key
-                ? "bg-gray-800 text-white shadow"
-                : "text-gray-500 hover:text-gray-300"
+                ? "bg-white/[0.1] text-white shadow-sm"
+                : "text-white/40 hover:text-white/70"
             }`}
           >
             <span className="mr-1.5">{tab.icon}</span>
@@ -89,7 +89,7 @@ export default function BookingsPage() {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+        <div className="bg-red-500/[0.08] border border-red-500/20 rounded-2xl p-4 text-red-400 text-[13px]">
           {error}
         </div>
       )}
@@ -106,7 +106,7 @@ export default function BookingsPage() {
           {activeTab === "matches" && <HighCardMatchesTab matches={analytics.highCardMatches} />}
         </>
       ) : (
-        <div className="text-gray-500 text-center py-12">
+        <div className="text-white/30 text-center py-16 text-[13px]">
           No booking data available. CSV data may still be loading.
         </div>
       )}
@@ -359,7 +359,7 @@ function PredictionsTab({ competition }: { competition: string }) {
       </div>
 
       {/* Methodology note */}
-      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 text-xs text-gray-500">
+      <div className="glass-card rounded-2xl p-4 text-[11px] text-white/30">
         <span className="font-semibold text-gray-400">How predictions work: </span>
         Predictions combine team discipline profiles (home/away specific card rates), head-to-head
         history, seasonal card trends, and combined foul rates. Player-level risks factor in individual
@@ -482,8 +482,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
 
       <div className="grid md:grid-cols-2 gap-6">
         {/* Card distribution */}
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Card Distribution (per match)
           </h3>
           <BarChart
@@ -500,8 +500,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
         </div>
 
         {/* Home vs Away */}
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Home vs Away Cards
           </h3>
           <div className="grid grid-cols-2 gap-6 mt-4">
@@ -561,8 +561,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
 
       {/* Cards by match result + monthly trends */}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Avg Cards by Match Result
           </h3>
           <BarChart
@@ -578,8 +578,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
           </p>
         </div>
 
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Monthly Card Trends
           </h3>
           {analytics.monthlyTrends.length > 0 ? (
@@ -601,8 +601,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
 
       {/* Quick previews */}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Strictest Referees (top 8)
           </h3>
           <HorizontalBar
@@ -621,8 +621,8 @@ function OverviewTab({ analytics }: { analytics: BookingAnalytics }) {
           />
         </div>
 
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">
+        <div className="glass-card rounded-2xl p-5">
+          <h3 className="text-[13px] font-semibold text-white/60 mb-4">
             Least Disciplined Teams (top 8)
           </h3>
           <HorizontalBar
@@ -795,11 +795,11 @@ function TeamsTab({ teams, avgCards }: { teams: TeamDiscipline[]; avgCards: numb
     <div className="space-y-6">
       <h2 className="text-lg font-semibold">Team Discipline Rankings</h2>
 
-      <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+      <div className="glass-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
+              <tr className="border-b border-white/[0.06] text-white/30 text-[11px] uppercase tracking-wider">
                 <th className="px-4 py-3 text-left w-10">#</th>
                 <th className="px-4 py-3 text-left">Team</th>
                 <th className="px-4 py-3 text-center">P</th>
@@ -818,7 +818,7 @@ function TeamsTab({ teams, avgCards }: { teams: TeamDiscipline[]; avgCards: numb
               {teams.map((team, i) => (
                 <tr
                   key={team.team}
-                  className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                  className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors duration-150"
                 >
                   <td className="px-4 py-3 text-gray-500">{i + 1}</td>
                   <td className="px-4 py-3 font-medium text-white">{team.team}</td>
@@ -944,11 +944,11 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
       )}
 
       {playerData.length > 0 ? (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="glass-card rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 text-gray-500 text-xs uppercase">
+                <tr className="border-b border-white/[0.06] text-white/30 text-[11px] uppercase tracking-wider">
                   <th className="px-3 py-3 text-left w-8">#</th>
                   <th className="px-3 py-3 text-left">Player</th>
                   <th className="px-3 py-3 text-left">Team</th>
@@ -967,7 +967,7 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
                 {playerData.slice(0, 50).map((player, i) => (
                   <tr
                     key={`${player.player}-${player.squad}`}
-                    className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                    className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors duration-150"
                   >
                     <td className="px-3 py-3 text-gray-500">{i + 1}</td>
                     <td className="px-3 py-3 font-medium text-white">{player.player}</td>
@@ -996,7 +996,7 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
           </div>
         </div>
       ) : (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center">
+        <div className="glass-card rounded-2xl p-8 text-center">
           <div className="text-3xl mb-3">📄</div>
           <h3 className="text-white font-semibold mb-2">Upload Player Stats CSV</h3>
           <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">

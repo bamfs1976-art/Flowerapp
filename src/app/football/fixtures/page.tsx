@@ -46,7 +46,6 @@ export default function FixturesPage() {
     fetchData();
   }, [fetchData]);
 
-  // Group matches by date
   const grouped = viewMode === "results"
     ? matches.reduce((acc, match) => {
         const key = match.date;
@@ -66,32 +65,33 @@ export default function FixturesPage() {
     : {};
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold mb-1">Fixtures & Results</h1>
-          <p className="text-gray-500 text-sm">
+          <h1 className="text-[24px] font-bold tracking-tight mb-1">Fixtures & Results</h1>
+          <p className="text-white/35 text-[13px]">
             Browse match results and upcoming fixtures
           </p>
         </div>
 
-        <div className="flex bg-gray-800 rounded-lg p-1">
+        {/* Segmented control */}
+        <div className="flex bg-white/[0.04] rounded-xl p-1">
           <button
             onClick={() => setViewMode("results")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
               viewMode === "results"
-                ? "bg-emerald-500 text-white"
-                : "text-gray-400 hover:text-white"
+                ? "bg-white/[0.1] text-white shadow-sm"
+                : "text-white/40 hover:text-white/70"
             }`}
           >
             Results
           </button>
           <button
             onClick={() => setViewMode("upcoming")}
-            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
               viewMode === "upcoming"
-                ? "bg-emerald-500 text-white"
-                : "text-gray-400 hover:text-white"
+                ? "bg-white/[0.1] text-white shadow-sm"
+                : "text-white/40 hover:text-white/70"
             }`}
           >
             Upcoming
@@ -102,7 +102,7 @@ export default function FixturesPage() {
       <LeagueSelector selected={competition} onChange={setCompetition} />
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400 text-sm">
+        <div className="bg-red-500/[0.08] border border-red-500/20 rounded-2xl p-4 text-red-400 text-[13px]">
           {error}
         </div>
       )}
@@ -114,7 +114,7 @@ export default function FixturesPage() {
           <div className="space-y-8">
             {Object.entries(grouped).map(([date, dayMatches]) => (
               <div key={date}>
-                <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
+                <h3 className="text-[11px] font-semibold text-white/25 mb-3 uppercase tracking-widest">
                   {new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
                     weekday: "long",
                     day: "numeric",
@@ -122,7 +122,7 @@ export default function FixturesPage() {
                     year: "numeric",
                   })}
                 </h3>
-                <div className="grid md:grid-cols-2 gap-3">
+                <div className="grid md:grid-cols-2 gap-2">
                   {dayMatches.map((match) => (
                     <MatchCard key={match.id} match={match} />
                   ))}
@@ -131,7 +131,7 @@ export default function FixturesPage() {
             ))}
           </div>
         ) : (
-          <div className="text-gray-500 text-center py-12">
+          <div className="text-white/30 text-center py-16 text-[13px]">
             No results available for this league
           </div>
         )
@@ -139,7 +139,7 @@ export default function FixturesPage() {
         <div className="space-y-8">
           {Object.entries(groupedFixtures).map(([date, dayFixtures]) => (
             <div key={date}>
-              <h3 className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wider">
+              <h3 className="text-[11px] font-semibold text-white/25 mb-3 uppercase tracking-widest">
                 {new Date(date + "T12:00:00").toLocaleDateString("en-GB", {
                   weekday: "long",
                   day: "numeric",
@@ -147,7 +147,7 @@ export default function FixturesPage() {
                   year: "numeric",
                 })}
               </h3>
-              <div className="grid md:grid-cols-2 gap-3">
+              <div className="grid md:grid-cols-2 gap-2">
                 {dayFixtures.map((fix) => (
                   <MatchCard key={fix.id} fixture={fix} />
                 ))}
@@ -156,7 +156,7 @@ export default function FixturesPage() {
           ))}
         </div>
       ) : (
-        <div className="text-gray-500 text-center py-12">
+        <div className="text-white/30 text-center py-16 text-[13px]">
           No upcoming fixtures available
         </div>
       )}

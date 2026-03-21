@@ -6,25 +6,26 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/football", label: "Dashboard", icon: "📊" },
   { href: "/football/standings", label: "Standings", icon: "🏆" },
-  { href: "/football/fixtures", label: "Fixtures & Results", icon: "📅" },
-  { href: "/football/bookings", label: "Bookings Analytics", icon: "🟨" },
+  { href: "/football/fixtures", label: "Fixtures", icon: "📅" },
+  { href: "/football/bookings", label: "Bookings", icon: "🟨" },
 ];
 
 export default function FootballNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="bg-gray-900 border-b border-gray-800">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/football" className="flex items-center gap-2">
-            <span className="text-2xl">⚽</span>
-            <span className="text-xl font-bold text-white">
+    <nav className="sticky top-0 z-50 glass border-b border-white/[0.06]">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="flex items-center justify-between h-14">
+          <Link href="/football" className="flex items-center gap-2.5 group">
+            <span className="text-xl transition-transform duration-200 group-hover:scale-110">⚽</span>
+            <span className="text-[15px] font-semibold tracking-tight text-white/90">
               Football<span className="text-emerald-400">Analytics</span>
             </span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-1">
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-0.5 bg-white/[0.04] rounded-xl p-1">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -33,10 +34,10 @@ export default function FootballNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                     isActive
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "text-gray-400 hover:text-white hover:bg-gray-800"
+                      ? "bg-white/[0.1] text-white shadow-sm"
+                      : "text-white/50 hover:text-white/80"
                   }`}
                 >
                   <span className="mr-1.5">{item.icon}</span>
@@ -47,7 +48,7 @@ export default function FootballNav() {
           </div>
 
           {/* Mobile nav */}
-          <div className="flex md:hidden items-center gap-1">
+          <div className="flex md:hidden items-center gap-0.5 bg-white/[0.04] rounded-xl p-1">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -56,10 +57,10 @@ export default function FootballNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`p-2 rounded-lg text-sm transition-all ${
+                  className={`p-2 rounded-lg text-sm transition-all duration-200 ${
                     isActive
-                      ? "bg-emerald-500/20 text-emerald-400"
-                      : "text-gray-500 hover:text-white"
+                      ? "bg-white/[0.1] text-white"
+                      : "text-white/40 hover:text-white/70"
                   }`}
                   title={item.label}
                 >

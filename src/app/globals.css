@@ -1,51 +1,105 @@
 @import "tailwindcss";
 
-:root {
-  --color-primary: #16a34a;
-  --color-primary-dark: #15803d;
-  --color-primary-light: #bbf7d0;
-  --color-background: #f0fdf4;
-  --color-surface: #ffffff;
-  --color-text: #14532d;
-  --color-text-secondary: #4b5563;
-  --color-border: #d1d5db;
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--color-background);
-  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Football section uses dark theme */
-.bg-gray-950 {
-  --color-background: #030712;
-  --color-text: #f9fafb;
+/* ── Glass morphism utilities ── */
+
+.glass {
+  background: rgba(17, 24, 39, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* Custom scrollbar */
+.glass-subtle {
+  background: rgba(17, 24, 39, 0.4);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Custom scrollbar (thin, unobtrusive) ── */
+
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #a7f3d0;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
 }
-
-/* Dark scrollbar for football pages */
-.bg-gray-950 ::-webkit-scrollbar-thumb {
-  background: #374151;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Smooth animations */
+/* ── Animations ── */
+
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Staggered children animation */
+.stagger-children > * {
+  animation: slideUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+
+/* ── Selection color ── */
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: white;
 }

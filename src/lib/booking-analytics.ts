@@ -307,6 +307,44 @@ function emptyAnalytics(): BookingAnalytics {
 
 // ── Enhanced prediction engine ──
 
+// Normalize team name for fuzzy matching between data sources
+function normalizeTeamName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[''`]/g, "")
+    .replace(/\bfc\b/g, "")
+    .replace(/\bsc\b/g, "")
+    .replace(/\bafc\b/g, "")
+    .replace(/\bcf\b/g, "")
+    .replace(/\bac\b/g, "")
+    .replace(/\bas\b/g, "")
+    .replace(/\bssc\b/g, "")
+    .replace(/\bud\b/g, "")
+    .replace(/\b1\.\s*/g, "")
+    .replace(/\bunited\b/g, "utd")
+    .replace(/\bcity\b/g, "")
+    .replace(/\btown\b/g, "")
+    .replace(/\bwanderers\b/g, "")
+    .replace(/\balbion\b/g, "")
+    .replace(/\bhotspur\b/g, "")
+    .replace(/\bforest\b/g, "forest")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Check if two team names match (fuzzy)
+function teamsMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const na = normalizeTeamName(a);
+  const nb = normalizeTeamName(b);
+  if (na === nb) return true;
+  // Check if one contains the other (e.g. "Arsenal" vs "Arsenal FC")
+  if (na.length >= 3 && nb.length >= 3) {
+    if (na.includes(nb) || nb.includes(na)) return true;
+  }
+  return false;
+}
+
 // Build head-to-head record between two teams from historical matches
 function buildHeadToHead(
   homeTeam: string,
@@ -343,7 +381,7 @@ function computePlayerRisks(
   leagueAvgCards: number
 ): PlayerBookingRisk[] {
   const teamPlayers = players.filter(
-    (p) => p.squad === teamName && p.matchesPlayed >= 3
+    (p) => teamsMatch(p.squad, teamName) && p.matchesPlayed >= 3
   );
 
   if (teamPlayers.length === 0) return [];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLeagueMatches, getAllLeagueMatches, getFixtures } from "@/lib/football-api";
 import { analyzeBookings, generatePredictions } from "@/lib/booking-analytics";
+import { getPlayerStats } from "@/lib/player-store";
 import type { LeagueCode } from "@/lib/football-types";
 
 export async function GET(request: NextRequest) {
@@ -17,15 +18,10 @@ export async function GET(request: NextRequest) {
       ? allFixtures.filter((f) => f.leagueCode === code)
       : allFixtures;
 
-    // Also fetch any uploaded player stats
-    const playerRes = await fetch(
-      new URL("/api/football/players", request.nextUrl.origin)
-    ).catch(() => null);
-    const playerData = playerRes?.ok
-      ? await playerRes.json()
-      : { players: [] };
+    // Get uploaded player stats directly from shared store
+    const players = getPlayerStats();
 
-    const analytics = analyzeBookings(matches, playerData.players || []);
+    const analytics = analyzeBookings(matches, players);
     const predictions = generatePredictions(fixtures, analytics, matches);
 
     return NextResponse.json({
@@ -33,7 +29,7 @@ export async function GET(request: NextRequest) {
       meta: {
         fixtureCount: fixtures.length,
         matchesAnalyzed: analytics.totalMatchesAnalyzed,
-        hasPlayerData: (playerData.players?.length || 0) > 0,
+        hasPlayerData: players.length > 0,
         leagueAvgCards: analytics.averageCardsPerMatch,
       },
     });

@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parsePlayerStatsCSV } from "@/lib/football-api";
-import type { PlayerStats } from "@/lib/football-types";
-
-// In-memory store for uploaded player stats
-let playerStatsCache: PlayerStats[] = [];
+import { getPlayerStats, setPlayerStats } from "@/lib/player-store";
 
 export async function GET() {
-  return NextResponse.json({ players: playerStatsCache });
+  return NextResponse.json({ players: getPlayerStats() });
 }
 
 // Accept CSV upload for player stats (Kaggle / FBref data)
@@ -23,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     const players = parsePlayerStatsCSV(csvText);
-    playerStatsCache = players;
+    setPlayerStats(players);
 
     return NextResponse.json({
       message: `Loaded ${players.length} players with booking data`,

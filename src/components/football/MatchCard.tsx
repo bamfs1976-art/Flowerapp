@@ -21,24 +21,24 @@ function formatDate(isoDate: string) {
 export default function MatchCard({ match, fixture, compact }: MatchCardProps) {
   if (fixture) {
     return (
-      <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-500">
-            {formatDate(fixture.date)} {fixture.time && `• ${fixture.time}`}
+      <div className="glass-card rounded-2xl p-4 transition-all duration-200 hover:bg-white/[0.05]">
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[11px] text-white/30 font-medium tracking-wide uppercase">
+            {formatDate(fixture.date)} {fixture.time && `\u00b7 ${fixture.time}`}
           </span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400">
-            Upcoming
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/[0.12] text-blue-400 font-semibold tracking-wide">
+            UPCOMING
           </span>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">
+            <span className="text-[14px] font-medium text-white/80">
               {fixture.homeTeam}
             </span>
-            <span className="text-gray-600">vs</span>
+            <span className="text-white/20 text-[11px] font-medium">vs</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-300">
+            <span className="text-[14px] font-medium text-white/80">
               {fixture.awayTeam}
             </span>
           </div>
@@ -53,57 +53,40 @@ export default function MatchCard({ match, fixture, compact }: MatchCardProps) {
   const isAwayWin = match.ftResult === "A";
 
   return (
-    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 hover:border-gray-600 transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-gray-500">
+    <div className="glass-card rounded-2xl p-4 transition-all duration-200 hover:bg-white/[0.05]">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] text-white/30 font-medium tracking-wide">
           {formatDate(match.date)}
-          {match.referee && match.referee !== "Unknown" && ` • ${match.referee}`}
+          {match.referee && match.referee !== "Unknown" && ` \u00b7 ${match.referee}`}
         </span>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-300">
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-white/40 font-semibold tracking-wider">
           FT
         </span>
       </div>
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span
-            className={`text-sm font-medium ${
-              isHomeWin ? "text-white" : "text-gray-400"
-            }`}
-          >
+          <span className={`text-[14px] font-medium ${isHomeWin ? "text-white" : "text-white/45"}`}>
             {match.homeTeam}
           </span>
-          <span
-            className={`text-lg font-bold ${
-              isHomeWin ? "text-white" : "text-gray-500"
-            }`}
-          >
+          <span className={`text-lg font-bold tabular-nums ${isHomeWin ? "text-white" : "text-white/30"}`}>
             {match.ftHomeGoals}
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span
-            className={`text-sm font-medium ${
-              isAwayWin ? "text-white" : "text-gray-400"
-            }`}
-          >
+          <span className={`text-[14px] font-medium ${isAwayWin ? "text-white" : "text-white/45"}`}>
             {match.awayTeam}
           </span>
-          <span
-            className={`text-lg font-bold ${
-              isAwayWin ? "text-white" : "text-gray-500"
-            }`}
-          >
+          <span className={`text-lg font-bold tabular-nums ${isAwayWin ? "text-white" : "text-white/30"}`}>
             {match.ftAwayGoals}
           </span>
         </div>
       </div>
 
-      {/* Card and stats info */}
       {!compact && (
-        <div className="mt-3 pt-3 border-t border-gray-700/50 flex items-center gap-3 text-xs text-gray-500">
+        <div className="mt-3 pt-3 border-t border-white/[0.04] flex items-center gap-4 text-[11px] text-white/30">
           {match.totalCards > 0 && (
-            <span className="text-yellow-400">
+            <span className="text-yellow-400/70">
               🟨 {match.homeYellows + match.awayYellows}
               {(match.homeReds + match.awayReds) > 0 &&
                 ` 🟥 ${match.homeReds + match.awayReds}`}
