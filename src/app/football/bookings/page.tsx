@@ -102,7 +102,7 @@ export default function BookingsPage() {
           {activeTab === "overview" && <OverviewTab analytics={analytics} />}
           {activeTab === "referees" && <RefereesTab referees={analytics.refereeStats} />}
           {activeTab === "teams" && <TeamsTab teams={analytics.teamDiscipline} avgCards={analytics.averageCardsPerMatch} />}
-          {activeTab === "players" && <PlayersTab players={analytics.playerStats} />}
+          {activeTab === "players" && <PlayersTab players={analytics.playerStats} competition={competition} />}
           {activeTab === "matches" && <HighCardMatchesTab matches={analytics.highCardMatches} />}
         </>
       ) : (
@@ -132,20 +132,34 @@ function PredictionsTab({ competition }: { competition: string }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    const url = competition
-      ? `/api/football/predictions?competition=${competition}`
-      : "/api/football/predictions";
-    fetch(url)
-      .then((r) => {
+
+    // Trigger auto-fetch of player data from Apify first, then load predictions
+    const loadPredictions = async () => {
+      // Pre-fetch player data from Apify (populates the server-side player store)
+      try {
+        await fetch(`/api/football/apify-players?competition=${competition}`);
+      } catch {
+        // Non-critical — predictions still work without player data
+      }
+
+      const url = competition
+        ? `/api/football/predictions?competition=${competition}`
+        : "/api/football/predictions";
+
+      try {
+        const r = await fetch(url);
         if (!r.ok) throw new Error("Failed to fetch");
-        return r.json();
-      })
-      .then((data) => {
+        const data = await r.json();
         setPredictions(data.predictions || []);
         setMeta(data.meta || null);
-      })
-      .catch(() => setError("Failed to load predictions"))
-      .finally(() => setLoading(false));
+      } catch {
+        setError("Failed to load predictions");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPredictions();
   }, [competition]);
 
   if (loading) return <LoadingSkeleton rows={6} />;
@@ -924,23 +938,39 @@ function TeamsTab({ teams, avgCards }: { teams: TeamDiscipline[]; avgCards: numb
 
 // ── Players Tab ──
 
-function PlayersTab({ players }: { players: PlayerStats[] }) {
+function PlayersTab({ players, competition }: { players: PlayerStats[]; competition: string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [playerData, setPlayerData] = useState<PlayerStats[]>(players);
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [autoFetching, setAutoFetching] = useState(false);
 
-  // Load persisted player stats
+  // Auto-fetch player data from Transfermarkt via Apify on load
   useEffect(() => {
-    fetch("/api/football/players")
+    setAutoFetching(true);
+    fetch(`/api/football/apify-players?competition=${competition}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.players && data.players.length > 0) {
           setPlayerData(data.players);
+          if (data.source === "apify") {
+            setUploadStatus(`Auto-loaded ${data.apifyCount} players from Transfermarkt`);
+          }
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        // Fallback to existing player store
+        fetch("/api/football/players")
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.players && data.players.length > 0) {
+              setPlayerData(data.players);
+            }
+          })
+          .catch(() => {});
+      })
+      .finally(() => setAutoFetching(false));
+  }, [competition]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1003,7 +1033,13 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
         </div>
       )}
 
-      {playerData.length > 0 ? (
+      {autoFetching ? (
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <div className="text-3xl mb-3 animate-pulse">🔄</div>
+          <h3 className="text-white font-semibold mb-2">Loading Player Data</h3>
+          <p className="text-gray-400 text-sm">Fetching player card stats from Transfermarkt...</p>
+        </div>
+      ) : playerData.length > 0 ? (
         <div className="glass-card rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -1058,9 +1094,9 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
       ) : (
         <div className="glass-card rounded-2xl p-8 text-center">
           <div className="text-3xl mb-3">📄</div>
-          <h3 className="text-white font-semibold mb-2">Upload Player Stats CSV</h3>
+          <h3 className="text-white font-semibold mb-2">No Player Data Available</h3>
           <p className="text-gray-400 text-sm max-w-md mx-auto mb-4">
-            Individual player booking data requires a CSV file from{" "}
+            Player data auto-fetches from Transfermarkt when available. You can also upload a CSV from{" "}
             <a
               href="https://www.kaggle.com/datasets/hubertsidorowicz/football-players-stats-2025-2026"
               target="_blank"
@@ -1069,14 +1105,13 @@ function PlayersTab({ players }: { players: PlayerStats[] }) {
             >
               Kaggle
             </a>{" "}
-            or FBref. The CSV should include columns for Player, Squad, MP (Matches Played),
-            Min (Minutes), CrdY (Yellow Cards), and CrdR (Red Cards).
+            or FBref with columns: Player, Squad, MP, Min, CrdY, CrdR.
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="px-5 py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-medium hover:bg-emerald-400 transition-colors"
           >
-            Choose CSV File
+            Upload CSV Instead
           </button>
         </div>
       )}
