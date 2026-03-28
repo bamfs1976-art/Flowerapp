@@ -1,12 +1,12 @@
-# CLAUDE.md — Flowerapp
+# CLAUDE.md — FPL War Room
 
 This file provides guidance for AI assistants (Claude, etc.) working in this repository.
 
 ## Project Overview
 
-**Flowerapp** is an AI-powered plant and flower identification web app. Users upload or capture a photo of any plant, and Claude's vision API identifies it — returning the common name, scientific name, care instructions, toxicity info, and fun facts.
+**FPL War Room** is a Fantasy Premier League dashboard app. It provides a dark-themed command-center interface for managing your FPL squad, analyzing transfers, tracking fixture difficulty, monitoring mini-league standings, and reviewing squad analytics.
 
-**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision)
+**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4
 
 ## Repository Structure
 
@@ -17,32 +17,30 @@ Flowerapp/
 ├── tsconfig.json                      # TypeScript configuration
 ├── next.config.ts                     # Next.js configuration
 ├── postcss.config.mjs                 # PostCSS / Tailwind CSS config
-├── .env.example                       # Environment variable template
 ├── .gitignore
-├── public/                            # Static assets
 └── src/
     ├── app/
-    │   ├── layout.tsx                 # Root layout with metadata
-    │   ├── page.tsx                   # Main page (client component, app shell)
-    │   ├── globals.css                # Global styles + Tailwind import
-    │   └── api/
-    │       └── identify/
-    │           └── route.ts           # POST /api/identify — Claude vision API
+    │   ├── layout.tsx                 # Root layout (dark theme)
+    │   ├── page.tsx                   # Main dashboard page with tab navigation
+    │   └── globals.css                # Global styles + Tailwind import
     ├── components/
-    │   ├── ImageUploader.tsx           # Photo upload/capture with drag-and-drop
-    │   ├── LoadingSpinner.tsx          # Animated loading state
-    │   ├── PlantResult.tsx             # Plant identification result display
-    │   └── HistoryPanel.tsx            # Recent identifications sidebar
+    │   ├── ManagerHeader.tsx           # Manager info bar, GW stats, chips, deadline
+    │   ├── TabNav.tsx                  # Tab navigation (Squad, Transfers, Fixtures, League, Analytics)
+    │   ├── SquadView.tsx               # Pitch-style squad view with player cards
+    │   ├── TransfersView.tsx           # Transfer suggestions with in/out comparison
+    │   ├── FixturesView.tsx            # Upcoming fixtures + FDR ticker grid
+    │   ├── LeagueView.tsx              # Mini-league standings table
+    │   └── AnalyticsView.tsx           # Squad analytics, leaderboards, position breakdown
     └── lib/
-        └── types.ts                   # Shared TypeScript types
+        ├── types.ts                   # Shared TypeScript types (Player, Fixture, etc.)
+        └── mock-data.ts              # Mock data for all views
 ```
 
 ## Getting Started
 
 1. Clone the repository
 2. `npm install`
-3. Copy `.env.example` to `.env` and add your Anthropic API key
-4. `npm run dev` — starts the dev server at http://localhost:3000
+3. `npm run dev` — starts the dev server at http://localhost:3000
 
 ## Commands Reference
 
@@ -57,65 +55,32 @@ Flowerapp/
 ## Architecture
 
 ### Frontend (Client Components)
-- **`page.tsx`** — Main app shell. Manages state for: current result, loading, errors, and identification history. Orchestrates the upload → identify → display flow.
-- **`ImageUploader`** — Handles file selection (click), camera capture (mobile), and drag-and-drop. Converts images to base64 and passes them up.
-- **`PlantResult`** — Renders the full identification card: hero image with overlay, confidence badge, care guide grid, fun facts, and toxicity warnings.
-- **`HistoryPanel`** — Horizontal scrollable list of recent identifications (kept in React state, max 10 items).
-- **`LoadingSpinner`** — Animated spinner shown during API calls.
+- **`page.tsx`** — Main dashboard shell. Manages active tab state and renders the appropriate view.
+- **`ManagerHeader`** — Displays manager name, team name, GW/overall points and rank, bank balance, free transfers, chip availability, and deadline countdown.
+- **`TabNav`** — Horizontal tab bar for switching between Squad, Transfers, Fixtures, League, and Analytics views.
+- **`SquadView`** — Renders the starting XI on a pitch layout (GKP → DEF → MID → FWD rows) plus bench. Each player card shows position, name, team, GW points, price, and a hover tooltip with detailed stats.
+- **`TransfersView`** — Shows transfer budget info and suggested transfers with side-by-side player comparison cards.
+- **`FixturesView`** — Lists upcoming GW fixtures and a color-coded Fixture Difficulty Rating (FDR) ticker grid for key teams.
+- **`LeagueView`** — Mini-league standings table with rank, team name, GW points, and total points. Highlights the user's team.
+- **`AnalyticsView`** — Squad summary stats, leaderboards (by Form, xGI, ICT, Value), and position breakdown.
 
-### Backend (API Route)
-- **`POST /api/identify`** — Accepts `{ image: string (base64), mediaType: string }`. Sends the image to Claude's vision API with a structured botanist prompt. Returns `{ plant: PlantIdentification }` as JSON.
-- Uses `claude-sonnet-4-20250514` model for vision identification.
-- The system prompt enforces strict JSON-only output matching the `PlantIdentification` type.
-
-### Data Flow
-```
-User uploads photo
-  → ImageUploader converts to base64
-  → page.tsx calls POST /api/identify
-  → API route sends image to Claude vision API
-  → Claude returns structured JSON identification
-  → PlantResult renders the result
-  → Result added to history
-```
+### Data
+- Currently uses mock data (`src/lib/mock-data.ts`). Can be connected to the official FPL API in the future.
 
 ### Key Types (`src/lib/types.ts`)
-- **`PlantIdentification`** — The core data shape returned by the API: commonName, scientificName, family, confidence, description, careInfo, funFacts, isEdible, isToxic, toxicityNote.
-- **`IdentificationResult`** — Wraps PlantIdentification with imageUrl and timestamp for history tracking.
+- **`Player`** — Full player data: name, team, position, price, points, goals, assists, form, xG/xA/xGI, ICT, etc.
+- **`Fixture`** — Match data with teams, scores, kickoff, FDR difficulty.
+- **`TeamFixtures`** — A team's upcoming fixture schedule for the FDR ticker.
+- **`GameweekStatus`** — Current GW info, deadline, average/highest scores.
+- **`ManagerInfo`** — Manager profile: rank, points, bank, transfers, chips.
+- **`TransferTarget`** — Transfer suggestion with in/out player comparison.
+- **`LeagueStanding`** — Mini-league entry with rank and points.
+- **`TabId`** — Union type for navigation tabs.
 
-## Environment & Configuration
+## Code Style
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key from https://console.anthropic.com/ |
-
-The API key is read automatically by the `@anthropic-ai/sdk` package from the environment.
-
-## Development Workflow
-
-### Branch Naming
-- Feature branches: `feature/<description>`
-- Bug fixes: `fix/<description>`
-- Claude/AI branches: `claude/<description>-<session-id>`
-
-### Commits
-- Write clear, concise commit messages describing **why** the change was made
-- Keep commits focused on a single logical change
-
-### Code Style
 - TypeScript strict mode is enabled
-- Tailwind CSS v4 for all styling (no CSS modules or styled-components)
+- Tailwind CSS v4 for all styling (dark theme)
 - All page/component files use `"use client"` directive (client-side rendering)
-- API routes are server-side only (no `"use client"`)
 - Prefer functional components with hooks
-
-## Key Conventions for AI Assistants
-
-1. **Read before writing** — Always read existing files before modifying them
-2. **Minimal changes** — Only change what is necessary to accomplish the task
-3. **No over-engineering** — Avoid adding abstractions, utilities, or features beyond what was requested
-4. **Security first** — Never introduce command injection, XSS, SQL injection, or other vulnerabilities; never commit `.env` files
-5. **Don't guess** — If context is missing, ask the user rather than making assumptions
-6. **Test your work** — Run `npm run build` after making changes to verify compilation
-7. **Keep this file updated** — When adding new tools, scripts, or conventions, update CLAUDE.md accordingly
-8. **Respect the stack** — Use Tailwind for styling, App Router conventions for routing, and the Anthropic SDK for AI features
+- Dark color scheme: gray-950 background, emerald accents, gray-800 cards
