@@ -871,9 +871,9 @@ select.inp{
   <div class="page" id="page-diffs">
     <div class="ph"><h2>Differential Scout</h2><p>Under 15% owned &middot; Strong underlying data &middot; Rank-boosting upside</p></div>
     <div class="al as mb-16"><span class="al-ic">&#8599;</span><div>Differentials only win rank when they score. Target ones with easy fixtures AND captain potential &mdash; that's when low EO creates maximum rank swing.</div></div>
-    <div class="card"><div class="ct">Differential Candidates &mdash; Ranked by Value Score</div>
-      <div class="tw"><table><thead><tr><th>Player</th><th>Pos</th><th>Club</th><th class="r">Own%</th><th class="r">&pound;</th><th class="r">Form</th><th class="r">xG+xA</th><th>Fixture</th><th>Verdict</th></tr></thead>
-      <tbody id="df-bod"><tr><td colspan="9" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr></tbody></table></div>
+    <div class="card"><div class="ct fbc"><span>Differential Candidates</span><div class="fac gap-8"><label class="xs t3c">Sort:</label><select id="df-sort" class="inp" style="font-size:.75rem;padding:3px 8px;height:auto" onchange="if(S.bs)rdDiffs(S.bs)"><option value="form">Form</option><option value="xgi90">xGI per 90</option></select></div></div>
+      <div class="tw"><table><thead><tr><th>Player</th><th>Pos</th><th>Club</th><th class="r">Own%</th><th class="r">&pound;</th><th class="r">Form</th><th class="r">xG+xA</th><th class="r">xGI/90</th><th class="r">Mins/App</th><th>Verdict</th></tr></thead>
+      <tbody id="df-bod"><tr><td colspan="10" style="text-align:center;padding:32px"><div class="spinner"></div></td></tr></tbody></table></div>
     </div>
   </div>
 
@@ -1126,6 +1126,18 @@ const S={
   gwHistory:null
 };
 function lg(k){return localStorage.getItem('fwr_'+k)||'available'}
+const HAS_PL_STATS=typeof window.PL_STATS!=='undefined'&&window.PL_STATS.length>0;
+const _plStatsCache=new Map();
+function matchPLStats(fplName){
+  if(!HAS_PL_STATS)return null;
+  if(_plStatsCache.has(fplName))return _plStatsCache.get(fplName);
+  const norm=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const n=norm(fplName);
+  let match=window.PL_STATS.find(p=>norm(p.playerName)===n);
+  if(!match)match=window.PL_STATS.find(p=>norm(p.playerName).includes(n)||n.includes(norm(p.playerName)));
+  _plStatsCache.set(fplName,match||null);
+  return match||null;
+}
 const PM={1:'GK',2:'DEF',3:'MID',4:'FWD'};
 const FPL='https://fantasy.premierleague.com/api/';
 const IS_NETLIFY = !['localhost','127.0.0.1',''].includes(window.location.hostname) &&
@@ -1439,17 +1451,46 @@ function rdCaps(d){
   const top=[...d.elements].filter(e=>parseFloat(e.form)>5).sort((a,b)=>parseFloat(b.form)-parseFloat(a.form)).slice(0,6);
   const cols=['bl','bl','gr','bl','am','gr'],types=['Safe','Safe','Differential','Safe','Semi-Diff','Differential'];
   document.getElementById('cap-cards').innerHTML=top.map((e,i)=>{
-    const s=Math.min(99,Math.round(parseFloat(e.form)*9));const colVar=cols[i]==='gr'?'var(--gr)':cols[i]==='am'?'var(--am)':'var(--bl)';
-    return `<div class="cc"><div class="fbc mb-8"><div><div class="cn">${e.web_name}</div><div class="cclub">${(tm[e.team]||{}).short_name||'—'} · ${PM[e.element_type]}</div></div><div class="csv2" style="color:${colVar}">${s}</div></div><div class="flex gap-4 mb-8" style="flex-wrap:wrap"><span class="tag ${cols[i]==='gr'?'tg':cols[i]==='am'?'ty':'tb'}">${types[i]}</span><span class="tag tz">Own: ${e.selected_by_percent}%</span><span class="tag tt">Form: ${e.form}</span></div><div class="xs t3c mb-8">£${(e.now_cost/10).toFixed(1)}m · ${e.total_points} pts total</div><div class="sb2"><div class="sf" style="width:${s}%;background:${colVar}"></div></div></div>`;}).join('');
+    const baseScore=parseFloat(e.form)*9;
+    const ps=HAS_PL_STATS?matchPLStats(e.web_name):null;
+    const ratingBonus=ps&&ps.rating?Math.max(0,Math.min(1,(ps.rating-6.0)/2.0))*10:0;
+    const s=Math.min(99,Math.round(baseScore*0.9+ratingBonus));
+    const colVar=cols[i]==='gr'?'var(--gr)':cols[i]==='am'?'var(--am)':'var(--bl)';
+    const ratingTag=ps&&ps.rating?`<span class="tag tt">Rating: ${ps.rating.toFixed(2)}</span>`:'';
+    return `<div class="cc"><div class="fbc mb-8"><div><div class="cn">${e.web_name}</div><div class="cclub">${(tm[e.team]||{}).short_name||'—'} · ${PM[e.element_type]}</div></div><div class="csv2" style="color:${colVar}">${s}</div></div><div class="flex gap-4 mb-8" style="flex-wrap:wrap"><span class="tag ${cols[i]==='gr'?'tg':cols[i]==='am'?'ty':'tb'}">${types[i]}</span><span class="tag tz">Own: ${e.selected_by_percent}%</span><span class="tag tt">Form: ${e.form}</span>${ratingTag}</div><div class="xs t3c mb-8">£${(e.now_cost/10).toFixed(1)}m · ${e.total_points} pts total</div><div class="sb2"><div class="sf" style="width:${s}%;background:${colVar}"></div></div></div>`;}).join('');
 }
 
 function rdDemoDiffs(){
-  document.getElementById('df-bod').innerHTML=DM.diffs.map(d=>`<tr><td class="cp">${d.n}</td><td><span class="pos p${d.p}">${d.p}</span></td><td class="t2c">${d.cl}</td><td class="r ${parseFloat(d.ow)<10?'ca w7':''}">${d.ow}</td><td class="r">£${d.pr.replace('£','')}</td><td class="r cy">${d.fm}</td><td class="r cbl">${d.xg}</td><td><span class="fdr f${d.fdr}">${d.fix}</span></td><td><span class="tag ${d.v==='Buy'?'tg':'ty'}">${d.v==='Buy'?'↗ Buy':'◎ Monitor'}</span></td></tr>`).join('');
+  document.getElementById('df-bod').innerHTML=DM.diffs.map(d=>`<tr><td class="cp">${d.n}</td><td><span class="pos p${d.p}">${d.p}</span></td><td class="t2c">${d.cl}</td><td class="r ${parseFloat(d.ow)<10?'ca w7':''}">${d.ow}</td><td class="r">£${d.pr.replace('£','')}</td><td class="r cy">${d.fm}</td><td class="r cbl">${d.xg}</td><td class="r t3c">—</td><td class="r t3c">—</td><td><span class="tag ${d.v==='Buy'?'tg':'ty'}">${d.v==='Buy'?'↗ Buy':'◎ Monitor'}</span></td></tr>`).join('');
 }
 function rdDiffs(d){
   const tm={};d.teams.forEach(t=>tm[t.id]=t);
-  const diffs=[...d.elements].filter(e=>parseFloat(e.selected_by_percent)<15&&parseFloat(e.form)>4).sort((a,b)=>parseFloat(b.form)-parseFloat(a.form)).slice(0,8);
-  document.getElementById('df-bod').innerHTML=diffs.map(e=>`<tr><td class="cp">${e.web_name}</td><td><span class="pos p${PM[e.element_type]}">${PM[e.element_type]}</span></td><td class="t2c">${(tm[e.team]||{}).short_name||'—'}</td><td class="r ca w7">${e.selected_by_percent}%</td><td class="r">£${(e.now_cost/10).toFixed(1)}m</td><td class="r cy">${e.form}</td><td class="r cbl">${(parseFloat(e.expected_goals||0)+parseFloat(e.expected_assists||0)).toFixed(2)}</td><td><span class="fdr f2">Next GW</span></td><td><span class="tag tg">↗ Watch</span></td></tr>`).join('');
+  const sortEl=document.getElementById('df-sort');
+  const sortMode=sortEl?sortEl.value:'form';
+  let diffs=[...d.elements].filter(e=>parseFloat(e.selected_by_percent)<15&&parseFloat(e.form)>4);
+  if(sortMode==='xgi90'&&HAS_PL_STATS){
+    diffs=diffs.map(e=>{
+      const ps=matchPLStats(e.web_name);
+      const mins=ps&&ps.minutesPlayed>=450?ps.minutesPlayed:null;
+      const apps=ps&&ps.appearances?ps.appearances:null;
+      const xgi90=(mins&&ps&&ps.position!=='G')?((ps.expectedGoals||0)+(ps.expectedAssists||0))/(mins/90):null;
+      return{...e,_xgi90:xgi90,_mins:mins,_apps:apps};
+    }).filter(e=>e._xgi90!==null).sort((a,b)=>b._xgi90-a._xgi90).slice(0,8);
+  }else{
+    diffs=diffs.sort((a,b)=>parseFloat(b.form)-parseFloat(a.form)).slice(0,8).map(e=>{
+      const ps=HAS_PL_STATS?matchPLStats(e.web_name):null;
+      const mins=ps&&ps.minutesPlayed>=450?ps.minutesPlayed:null;
+      const apps=ps&&ps.appearances?ps.appearances:null;
+      const xgi90=(mins&&ps&&ps.position!=='G')?((ps.expectedGoals||0)+(ps.expectedAssists||0))/(mins/90):null;
+      return{...e,_xgi90:xgi90,_mins:mins,_apps:apps};
+    });
+  }
+  document.getElementById('df-bod').innerHTML=diffs.map(e=>{
+    const xgi90=e._xgi90!=null?e._xgi90:null;
+    const xgiCls=xgi90===null?'t3c':xgi90>0.5?'ca':xgi90>=0.3?'cy':'t3c';
+    const xgiStr=xgi90===null?'—':xgi90.toFixed(2);
+    const minsApp=(e._mins&&e._apps)?Math.round(e._mins/e._apps)+'':'—';
+    return`<tr><td class="cp">${e.web_name}</td><td><span class="pos p${PM[e.element_type]}">${PM[e.element_type]}</span></td><td class="t2c">${(tm[e.team]||{}).short_name||'—'}</td><td class="r ca w7">${e.selected_by_percent}%</td><td class="r">£${(e.now_cost/10).toFixed(1)}m</td><td class="r cy">${e.form}</td><td class="r cbl">${(parseFloat(e.expected_goals||0)+parseFloat(e.expected_assists||0)).toFixed(2)}</td><td class="r ${xgiCls}">${xgiStr}</td><td class="r t2c">${minsApp}</td><td><span class="tag tg">↗ Watch</span></td></tr>`;}).join('');
 }
 
 const stIc={out:'🔴',doubt:'🟡',monitor:'🟢'};
@@ -1498,7 +1539,26 @@ function rdDemoRot(){
 }
 function rdRot(d){rdDemoRot();}
 
-function rdSP(d){rdDemoSP();}
+function rdSP(d){
+  if(!HAS_PL_STATS){rdDemoSP();return;}
+  // Penalty takers — per team, highest penaltiesTaken; flag Split if two within 1
+  const quals=window.PL_STATS.filter(p=>p.minutesPlayed>=450&&p.penaltiesTaken>0);
+  const byTeam={};
+  quals.forEach(p=>{if(!byTeam[p.teamName])byTeam[p.teamName]=[];byTeam[p.teamName].push(p);});
+  const penRows=[];
+  Object.entries(byTeam).forEach(([team,players])=>{
+    players.sort((a,b)=>b.penaltiesTaken-a.penaltiesTaken);
+    const top=players[0];
+    const split=players.length>1&&(top.penaltiesTaken-players[1].penaltiesTaken)<=1;
+    penRows.push({name:top.playerName,club:team,taken:top.penaltiesTaken,goals:top.penaltyGoals,split});
+  });
+  penRows.sort((a,b)=>b.taken-a.taken);
+  document.getElementById('pen-tbl').innerHTML=`<div class="tw"><table><thead><tr><th>Player</th><th>Club</th><th class="r">Pens</th><th class="r">Goals</th><th>Status</th></tr></thead><tbody>${penRows.map(r=>`<tr><td class="cp">${r.name}</td><td class="t2c">${r.club}</td><td class="r ca w7">${r.taken}</td><td class="r">${r.goals}</td><td>${r.split?'<span class="tag ty">Split</span>':'<span class="tag tg">Primary</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  // Free kick specialists — freeKickGoal >= 1 OR shotFromSetPiece >= 5, minutesPlayed >= 450
+  const fkPlayers=window.PL_STATS.filter(p=>p.minutesPlayed>=450&&((p.freeKickGoal||0)>=1||(p.shotFromSetPiece||0)>=5));
+  fkPlayers.sort((a,b)=>(b.shotFromSetPiece||0)-(a.shotFromSetPiece||0));
+  document.getElementById('fk-tbl').innerHTML=`<div class="tw"><table><thead><tr><th>Player</th><th>Club</th><th class="r">FK Shots</th><th class="r">FK Goals</th></tr></thead><tbody>${fkPlayers.map(r=>`<tr><td class="cp">${r.playerName}</td><td class="t2c">${r.teamName}</td><td class="r ca w7">${r.shotFromSetPiece||0}</td><td class="r">${r.freeKickGoal||0}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function rdDemoSP(){
   const mkSP=arr=>arr.map(r=>`<div class="spr"><div><div class="cp sm">${r.n}</div><div class="xs t3c">${r.cl}</div></div><div style="text-align:right"><div class="spdots">${[1,2,3,4,5].map(i=>`<div class="spdot${i<=r.conf?' on':''}"></div>`).join('')}</div><div class="xs t3c mt-4">${r.note}</div></div></div>`).join('');
   document.getElementById('pen-tbl').innerHTML=mkSP(DM.pens);
@@ -1591,7 +1651,16 @@ function rdSmTgts(d){
     const nextFdr=3; // default mid-range; would need fixture data for exact
     const impact=calcImpact(e,nextFdr);
     const impCls=impact>=8?'tg':impact>=5?'ty':'tr';
-    return`<div class="txr"><div><div class="cp sm">${e.web_name} <span class="pos p${PM[e.element_type]}">${PM[e.element_type]}</span> <span class="tag ${impCls}" title="Impact Score">${impact}</span></div><div class="xs t3c mt-4">${(tm[e.team]||{}).short_name||'—'} · £${(e.now_cost/10).toFixed(1)}m</div></div><div style="flex:1;padding:0 12px;font-size:.694rem;color:var(--t2)">Form ${e.form} · xG+xA ${(parseFloat(e.expected_goals||0)+parseFloat(e.expected_assists||0)).toFixed(2)} · +${e.transfers_in_event.toLocaleString()}</div><div style="text-align:right"><span class="tag ${cls}">${v}</span><div class="xs t3c mt-4">Own: ${e.selected_by_percent}%</div></div></div>`;}).join('');
+    let xgBadge='';
+    if(HAS_PL_STATS){
+      const ps=matchPLStats(e.web_name);
+      if(ps&&ps.minutesPlayed>=450&&ps.goals!=null&&ps.expectedGoals!=null){
+        const goalDiff=ps.goals-ps.expectedGoals;
+        if(goalDiff>=2)xgBadge=` <span class="tag tr" title="Scoring above xG — regression likely.">Overperf ⚠</span>`;
+        else if(goalDiff<=-2)xgBadge=` <span class="tag tg" title="Underperforming xG — correction expected.">Due Goals ✓</span>`;
+      }
+    }
+    return`<div class="txr"><div><div class="cp sm">${e.web_name}${xgBadge} <span class="pos p${PM[e.element_type]}">${PM[e.element_type]}</span> <span class="tag ${impCls}" title="Impact Score">${impact}</span></div><div class="xs t3c mt-4">${(tm[e.team]||{}).short_name||'—'} · £${(e.now_cost/10).toFixed(1)}m</div></div><div style="flex:1;padding:0 12px;font-size:.694rem;color:var(--t2)">Form ${e.form} · xG+xA ${(parseFloat(e.expected_goals||0)+parseFloat(e.expected_assists||0)).toFixed(2)} · +${e.transfers_in_event.toLocaleString()}</div><div style="text-align:right"><span class="tag ${cls}">${v}</span><div class="xs t3c mt-4">Own: ${e.selected_by_percent}%</div></div></div>`;}).join('');
 }
 
 function rdDemoPitch(){
@@ -1781,6 +1850,8 @@ async function loadSquad(){
     loadGWHistory(id, hist, picks);
     // Render dashboard actions
     renderGWActions(info, hist, picks);
+    // Card accumulation alerts
+    rdCardAlerts(picks);
     // Auto-start live rank engine once squad is loaded
     if(S.mid && S.bs) startLiveRank();
   }catch(e){console.error(e);document.getElementById('sq-bod').innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--rd);padding:24px">Failed to load. Check Manager ID or try again.</td></tr>';}
@@ -1805,6 +1876,28 @@ function rdCmpPanel(){
   const stats=[{k:'form',l:'Form',f:v=>parseFloat(v||0).toFixed(1)},{k:'now_cost',l:'Price',f:v=>'£'+(v/10).toFixed(1)+'m'},{k:'selected_by_percent',l:'Ownership',f:v=>v+'%'},{k:'total_points',l:'Total Pts',f:v=>v},{k:'event_points',l:'GW Points',f:v=>v},{k:'expected_goals',l:'xG',f:v=>parseFloat(v||0).toFixed(2)},{k:'expected_assists',l:'xA',f:v=>parseFloat(v||0).toFixed(2)},{k:'goals_scored',l:'Goals',f:v=>v},{k:'assists',l:'Assists',f:v=>v},{k:'ict_index',l:'ICT Index',f:v=>parseFloat(v||0).toFixed(1)},{k:'transfers_in_event',l:'GW Transfers In',f:v=>(v||0).toLocaleString()}];
   let html=`<div class="card"><div class="cmprow" style="grid-template-columns:${gc}"><div class="xs t3c w7">METRIC</div>${active.map(p=>`<div style="text-align:center"><div class="cp w7">${p.web_name}</div><div class="xs t3c">${(tm[p.team]||{}).short_name||'—'} · <span class="pos p${PM[p.element_type]}">${PM[p.element_type]}</span></div></div>`).join('')}</div>`;
   stats.forEach(s=>{const vals=active.map(p=>parseFloat(p[s.k]||0));const mx=Math.max(...vals);html+=`<div class="cmprow" style="grid-template-columns:${gc}"><div class="cmplbl">${s.l}</div>${active.map((p,i)=>`<div class="cmpv${parseFloat(p[s.k]||0)===mx&&mx>0?' best':''}">${s.f(p[s.k]||0)}</div>`).join('')}</div>`;});
+  // Rotation Risk row
+  const plMatches=active.map(p=>HAS_PL_STATS?matchPLStats(p.web_name):null);
+  const rotCells=active.map((p,i)=>{
+    const ps=plMatches[i];
+    if(!ps||!ps.minutesPlayed||!ps.appearances)return'<div class="cmpv"><span class="tag tz">—</span></div>';
+    const mpa=ps.minutesPlayed/ps.appearances;
+    const cls=mpa>70?'tg':mpa>=45?'ty':'tr';
+    const lbl=mpa>70?'Low':mpa>=45?'Medium':'High';
+    return`<div class="cmpv"><span class="tag ${cls}">${lbl}</span></div>`;
+  });
+  html+=`<div class="cmprow" style="grid-template-columns:${gc}"><div class="cmplbl">Rotation Risk</div>${rotCells.join('')}</div>`;
+  if(HAS_PL_STATS){
+    // Big Chances Created
+    const bccCells=active.map((p,i)=>{const ps=plMatches[i];const v=ps?ps.bigChancesCreated??0:null;const vals2=plMatches.filter(Boolean).map(q=>q.bigChancesCreated||0);const mx2=Math.max(...vals2);return`<div class="cmpv${v!==null&&v===mx2&&mx2>0?' best':''}">${v!==null?v:'—'}</div>`;});
+    html+=`<div class="cmprow" style="grid-template-columns:${gc}"><div class="cmplbl">Big Chances Created</div>${bccCells.join('')}</div>`;
+    // SofaScore Rating
+    const ratingCells=active.map((p,i)=>{const ps=plMatches[i];const v=ps&&ps.rating?ps.rating:null;const vals2=plMatches.filter(Boolean).map(q=>q.rating||0);const mx2=Math.max(...vals2);return`<div class="cmpv${v!==null&&v===mx2&&mx2>0?' best':''}">${v!==null?v.toFixed(2):'—'}</div>`;});
+    html+=`<div class="cmprow" style="grid-template-columns:${gc}"><div class="cmplbl">SofaScore Rating</div>${ratingCells.join('')}</div>`;
+    // Yellow Cards
+    const ycCells=active.map((p,i)=>{const ps=plMatches[i];const v=ps&&ps.yellowCards!=null?ps.yellowCards:null;return`<div class="cmpv"><span class="${v===null?'t3c':v>6?'cr w7':v>4?'cy':''}">${v!==null?v:'—'}</span></div>`;});
+    html+=`<div class="cmprow" style="grid-template-columns:${gc}"><div class="cmplbl">Yellow Cards</div>${ycCells.join('')}</div>`;
+  }
   html+='</div>';document.getElementById('cmp-panel').innerHTML=html;
 }
 
@@ -1851,6 +1944,28 @@ function rdWatch(){
   const c=document.getElementById('wl-list');if(!c)return;
   if(!S.watch.length){c.innerHTML='<div class="al ai"><span class="al-ic">&#9711;</span><div>Watchlist is empty. Add players you\'re considering buying.</div></div>';return;}
   c.innerHTML=S.watch.map((p,i)=>`<div class="wp"><div style="flex:1"><div class="cp sm">${p.n}</div><div class="xs t3c">Added ${p.added}</div></div><button onclick="rmWatch(${i})" style="color:var(--rd);font-size:12px;padding:4px;background:var(--rdd);border-radius:4px">✕</button></div>`).join('');
+}
+function rdCardAlerts(picks){
+  if(!HAS_PL_STATS||!S.bs)return;
+  const bsMap={};S.bs.elements.forEach(e=>bsMap[e.id]=e);
+  const cardAlerts=[];const seen=new Set();
+  picks.picks.forEach(p=>{
+    const el=bsMap[p.element];if(!el)return;
+    const ps=matchPLStats(el.web_name);if(!ps)return;
+    if(seen.has(el.id))return;seen.add(el.id);
+    if((ps.yellowCards||0)>=5){cardAlerts.push({cls:'aw',ic:'🟡',title:`Yellow Card Warning — ${el.web_name}`,msg:`${ps.yellowCards} yellow cards this season — next booking = suspension.`});}
+    if((ps.redCards||0)>=1){cardAlerts.push({cls:'ad2',ic:'🔴',title:`Red Card Alert — ${el.web_name}`,msg:`Received ${ps.redCards} red card(s) this season.`});}
+  });
+  if(!cardAlerts.length)return;
+  const el=document.getElementById('al-list');if(!el)return;
+  // Insert after existing injury alerts (before price/transfer alerts)
+  const existing=el.innerHTML;
+  const injEnd=existing.lastIndexOf('</div>');
+  const newHtml=cardAlerts.map(a=>`<div class="alitem"><span class="alitem-ic">${a.ic}</span><div class="alitem-b"><strong>${a.title}:</strong> ${a.msg}</div><span class="alitem-t">Cards</span></div>`).join('');
+  el.insertAdjacentHTML('afterbegin',newHtml);
+  // Update badge count
+  const nb=document.getElementById('al-nb');
+  if(nb){const cur=parseInt(nb.textContent||'0',10);nb.textContent=cur+cardAlerts.length;nb.style.display='';}
 }
 function clearAlerts(){
   const el=document.getElementById('al-list');
@@ -2509,5 +2624,6 @@ function updateFdrHeaders(){
   }
 })();
 </script>
+<script src="pl_stats_2526.js"></script>
 </body>
 </html>
