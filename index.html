@@ -646,7 +646,7 @@ select.inp{
     <div class="ph"><h2>My Squad</h2><p>Formation view &middot; xG+xA sparklines &middot; Player status</p></div>
     <div class="card mb-16">
       <div class="fac gap-12" style="flex-wrap:wrap">
-        <div style="flex:1;min-width:160px"><label class="lbl" for="mid-in" id="lbl-mid">FPL Manager ID</label><input type="number" id="mid-in" class="inp" placeholder="e.g. 1234567" oninput="validateMid()"><div class="inp-err" id="mid-err">Please enter a valid FPL Manager ID (7–8 digits).</div></div>
+        <div style="flex:1;min-width:160px"><label class="lbl" for="mid-in" id="lbl-mid">FPL Manager ID</label><input type="number" id="mid-in" class="inp" placeholder="e.g. 1234567" oninput="validateMid()"><div class="inp-err" id="mid-err">Please enter a valid FPL Manager ID.</div></div>
         <div style="flex:1;min-width:120px"><label class="lbl" for="gw-sel" id="lbl-gw">Gameweek</label><select id="gw-sel" class="inp"></select></div>
         <button class="btn btn-p" id="btn-load-squad" onclick="loadSquad()" style="align-self:flex-end;height:36px">Load Squad</button>
       </div>
@@ -1109,7 +1109,7 @@ select.inp{
         <div class="onb-sub">Step 1 of 3 — Enter your FPL Manager ID</div>
         <label class="lbl" for="onb-mid">FPL Manager ID</label>
         <input type="number" id="onb-mid" class="inp" placeholder="e.g. 1234567" oninput="validateOnbMid()">
-        <div class="inp-err" id="onb-mid-err">Please enter a valid FPL Manager ID (7–8 digits).</div>
+        <div class="inp-err" id="onb-mid-err">Please enter a valid FPL Manager ID.</div>
         <div class="onb-actions"><button class="btn btn-p" id="onb-next1" onclick="onbNext(2)">Next &rarr;</button></div>
       </div>
     </div>
@@ -1154,7 +1154,7 @@ if(S.mid){localStorage.setItem('fplwr_mid',S.mid);const el=document.getElementBy
 if(S.rivals.length)localStorage.setItem('fplwr_rivals',JSON.stringify(S.rivals));
 
 // ── INPUT VALIDATION ─────────────────────────────────────────
-function isValidMid(val){const n=parseInt(val,10);return !isNaN(n)&&n>=1000000&&n<=99999999&&String(n)===String(val).trim();}
+function isValidMid(val){const n=parseInt(val,10);return !isNaN(n)&&n>=1&&n<=99999999&&String(n)===String(val).trim();}
 function validateMid(){
   const inp=document.getElementById('mid-in');const err=document.getElementById('mid-err');const btn=document.getElementById('btn-load-squad');
   if(!inp)return;const v=inp.value.trim();
