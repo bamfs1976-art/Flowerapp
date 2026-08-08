@@ -121,16 +121,19 @@ export default function WeatherPage() {
     }
   }, [place, load]);
 
-  /* Keep the resolved, human-readable name once the API has answered. */
-  useEffect(() => {
-    if (!overview || !place) return;
-    if (overview.place.displayName && overview.place.displayName !== place.label) {
-      setPlace((current) =>
-        current ? { ...current, label: overview.place.displayName } : current
-      );
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overview]);
+  /*
+   * The label the user sees comes from the API once it has answered. Deriving
+   * it instead of writing it back into `place` matters: `place` is the fetch
+   * key, so refining its label in an effect would retrigger the effect below
+   * and fetch the whole overview a second time for every location change.
+   */
+  const displayPlace = useMemo<SavedPlace | null>(
+    () =>
+      place
+        ? { query: place.query, label: overview?.place.displayName || place.label }
+        : null,
+    [place, overview]
+  );
 
   const persist = useCallback((next: SavedPlace[]) => {
     setFavorites(next);
@@ -142,14 +145,14 @@ export default function WeatherPage() {
   }, []);
 
   const toggleFavorite = useCallback(() => {
-    if (!place) return;
-    const exists = favorites.some((f) => f.query === place.query);
+    if (!displayPlace) return;
+    const exists = favorites.some((f) => f.query === displayPlace.query);
     persist(
       exists
-        ? favorites.filter((f) => f.query !== place.query)
-        : [...favorites, place].slice(-8)
+        ? favorites.filter((f) => f.query !== displayPlace.query)
+        : [...favorites, displayPlace].slice(-8)
     );
-  }, [favorites, place, persist]);
+  }, [favorites, displayPlace, persist]);
 
   const changeUnits = useCallback((next: UnitSystem) => {
     setUnits(next);
@@ -195,7 +198,7 @@ export default function WeatherPage() {
       </header>
 
       <LocationBar
-        current={place}
+        current={displayPlace}
         favorites={favorites}
         units={units}
         hour12={hour12}
