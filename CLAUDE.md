@@ -4,9 +4,14 @@ This file provides guidance for AI assistants (Claude, etc.) working in this rep
 
 ## Project Overview
 
-**Flowerapp** is an AI-powered plant and flower identification web app. Users upload or capture a photo of any plant, and Claude's vision API identifies it — returning the common name, scientific name, care instructions, toxicity info, and fun facts.
+**Flowerapp** hosts two independent apps in one Next.js project:
 
-**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision)
+1. **Plant & flower identifier (`/`)** — users upload or capture a photo of any plant, and Claude's vision API identifies it, returning the common name, scientific name, care instructions, toxicity info, and fun facts.
+2. **Weather dashboard (`/weather`)** — a personal weather app on the Vaisala Xweather API: current conditions, a minute-by-minute precipitation nowcast, 48-hour and 10-day forecasts, the trailing 24 hours, a historical archive explorer, air quality, sun/moon data, alerts and radar maps.
+
+The two apps share nothing but the Next.js shell. The weather app's styling is scoped to a `.wx` wrapper so it doesn't inherit the plant app's light green palette.
+
+**Tech stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS v4 · Anthropic Claude API (vision) · Vaisala Xweather API
 
 ## Repository Structure
 
@@ -23,26 +28,54 @@ Flowerapp/
 └── src/
     ├── app/
     │   ├── layout.tsx                 # Root layout with metadata
-    │   ├── page.tsx                   # Main page (client component, app shell)
+    │   ├── page.tsx                   # Plant identifier (client component)
     │   ├── globals.css                # Global styles + Tailwind import
+    │   ├── weather/
+    │   │   ├── layout.tsx             # Weather metadata + .wx theme wrapper
+    │   │   ├── page.tsx               # Weather dashboard shell (tabs, state)
+    │   │   └── weather.css            # Scoped dark theme for the weather app
     │   └── api/
-    │       └── identify/
-    │           └── route.ts           # POST /api/identify — Claude vision API
+    │       ├── identify/
+    │       │   └── route.ts           # POST /api/identify — Claude vision API
+    │       └── weather/
+    │           ├── overview/route.ts   # Everything for the dashboard, one call
+    │           ├── history/route.ts    # Daily summaries + normals for a range
+    │           ├── archive/route.ts    # One past day, hour by hour
+    │           ├── search/route.ts     # Place autocomplete
+    │           ├── map/route.ts        # Raster map proxy (keeps the key server-side)
+    │           └── diagnostics/route.ts # Which Xweather endpoints your key unlocks
     ├── components/
     │   ├── ImageUploader.tsx           # Photo upload/capture with drag-and-drop
     │   ├── LoadingSpinner.tsx          # Animated loading state
     │   ├── PlantResult.tsx             # Plant identification result display
-    │   └── HistoryPanel.tsx            # Recent identifications sidebar
+    │   ├── HistoryPanel.tsx            # Recent identifications sidebar
+    │   └── weather/
+    │       ├── ui.tsx                  # Card, Metric, Chip, Meter, SectionBody…
+    │       ├── Chart.tsx               # Dependency-free SVG line/area/bar chart
+    │       ├── LocationBar.tsx         # Search, geolocation, favourites, units
+    │       ├── NowPanel.tsx            # Current conditions, alerts, nowcast
+    │       ├── HourlyPanel.tsx         # 48-hour forecast
+    │       ├── ForecastPanel.tsx       # 10-day + day/night forecast
+    │       ├── RecentPanel.tsx         # Trailing 24 hours
+    │       ├── WeatherHistoryPanel.tsx # Archive explorer
+    │       ├── AirSunPanel.tsx         # Air quality + sun/moon
+    │       └── MapPanel.tsx            # Raster map with layer picker
     └── lib/
-        └── types.ts                   # Shared TypeScript types
+        ├── types.ts                   # Plant identification types
+        ├── weather-types.ts           # Xweather response types
+        ├── xweather.ts                # SERVER-ONLY Xweather API client
+        └── weather-format.ts          # Client-safe formatting helpers
 ```
 
 ## Getting Started
 
 1. Clone the repository
 2. `npm install`
-3. Copy `.env.example` to `.env` and add your Anthropic API key
+3. Copy `.env.example` to `.env` and fill in the keys you need — `ANTHROPIC_API_KEY`
+   for the plant identifier, `XWEATHER_CLIENT_ID` / `XWEATHER_CLIENT_SECRET` for
+   the weather dashboard
 4. `npm run dev` — starts the dev server at http://localhost:3000
+   (plant identifier at `/`, weather dashboard at `/weather`)
 
 ## Commands Reference
 
@@ -56,19 +89,21 @@ Flowerapp/
 
 ## Architecture
 
-### Frontend (Client Components)
+### Plant identifier (`/`)
+
+#### Frontend (Client Components)
 - **`page.tsx`** — Main app shell. Manages state for: current result, loading, errors, and identification history. Orchestrates the upload → identify → display flow.
 - **`ImageUploader`** — Handles file selection (click), camera capture (mobile), and drag-and-drop. Converts images to base64 and passes them up.
 - **`PlantResult`** — Renders the full identification card: hero image with overlay, confidence badge, care guide grid, fun facts, and toxicity warnings.
 - **`HistoryPanel`** — Horizontal scrollable list of recent identifications (kept in React state, max 10 items).
 - **`LoadingSpinner`** — Animated spinner shown during API calls.
 
-### Backend (API Route)
+#### Backend (API Route)
 - **`POST /api/identify`** — Accepts `{ image: string (base64), mediaType: string }`. Sends the image to Claude's vision API with a structured botanist prompt. Returns `{ plant: PlantIdentification }` as JSON.
 - Uses `claude-sonnet-4-20250514` model for vision identification.
 - The system prompt enforces strict JSON-only output matching the `PlantIdentification` type.
 
-### Data Flow
+#### Data Flow
 ```
 User uploads photo
   → ImageUploader converts to base64
@@ -79,17 +114,56 @@ User uploads photo
   → Result added to history
 ```
 
-### Key Types (`src/lib/types.ts`)
+#### Key Types (`src/lib/types.ts`)
 - **`PlantIdentification`** — The core data shape returned by the API: commonName, scientificName, family, confidence, description, careInfo, funFacts, isEdible, isToxic, toxicityNote.
 - **`IdentificationResult`** — Wraps PlantIdentification with imageUrl and timestamp for history tracking.
 
+### Weather dashboard (`/weather`)
+
+#### Frontend
+- **`weather/page.tsx`** — App shell. Owns the selected place, unit system,
+  12/24-hour clock, saved places (localStorage) and the active tab. Fetches
+  `/api/weather/overview` once per location and hands the payload to each panel.
+- **Panels** — `NowPanel`, `HourlyPanel`, `ForecastPanel`, `RecentPanel`,
+  `AirSunPanel` and `MapPanel` read from the overview payload.
+  `WeatherHistoryPanel` fetches on its own because the date range is user-driven.
+- **`Chart.tsx`** — All charts are inline SVG (lines, filled areas, an optional
+  bar series on its own scale, native `<title>` tooltips). No charting library.
+
+#### Backend (API Routes)
+- **`GET /api/weather/overview?p=`** — Resolves the place, then fans out to 14
+  Xweather data sets in parallel and returns them as `Section<T>` values.
+- **`GET /api/weather/history?p=&from=&to=`** — Daily summaries, station
+  summaries and climate normals for a range (capped at ~1 month upstream).
+- **`GET /api/weather/archive?p=&date=`** — One past day, hour by hour.
+- **`GET /api/weather/search?q=`** — Place autocomplete.
+- **`GET /api/weather/map?lat=&lon=&zoom=&layers=&offset=`** — Raster map proxy.
+- **`GET /api/weather/diagnostics?p=`** — Per-endpoint availability report.
+
+#### Data Flow
+```
+User picks a place (search / geolocation / saved chip)
+  → page.tsx calls GET /api/weather/overview?p=…
+  → route resolves the place, then fans out to Xweather in parallel
+  → each data set is wrapped in a Section (ok | error + code)
+  → panels render, showing an inline notice for any unavailable section
+```
+
 ## Environment & Configuration
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key from https://console.anthropic.com/ |
+| Variable | Required for | Description |
+|----------|--------------|-------------|
+| `ANTHROPIC_API_KEY` | `/` (plant identifier) | Your Anthropic API key from https://console.anthropic.com/ |
+| `XWEATHER_CLIENT_ID` | `/weather` | Xweather application ID from https://account.xweather.com/ |
+| `XWEATHER_CLIENT_SECRET` | `/weather` | Xweather application secret |
 
-The API key is read automatically by the `@anthropic-ai/sdk` package from the environment.
+`ANTHROPIC_API_KEY` is read automatically by the `@anthropic-ai/sdk` package. The
+Xweather pair is read only by `src/lib/xweather.ts`, which runs server-side; the
+credentials never reach the browser (raster map tiles are proxied through
+`/api/weather/map` for the same reason).
+
+Either app runs fine without the other's keys — a missing key produces an inline
+notice rather than a crash.
 
 ## Development Workflow
 
@@ -109,6 +183,24 @@ The API key is read automatically by the `@anthropic-ai/sdk` package from the en
 - API routes are server-side only (no `"use client"`)
 - Prefer functional components with hooks
 
+## Xweather Notes
+
+- Base URL `https://data.api.xweather.com/{endpoint}/{action}`, auth via
+  `client_id` / `client_secret` query params, envelope
+  `{ success, error: { code, description }, response }`.
+- Endpoints used: `places`, `places/search`, `conditions` (current, `filter=1min`
+  nowcast, trailing window, and `conditions/summary` for daily history),
+  `observations` (+ `/summary`, `/archive`), `forecasts` (`1hr`, `mdnt2mdnt`,
+  `daynight`), `alerts`, `airquality` (+ `/forecasts`), `sunmoon`, `threats`,
+  `lightning/summary`, `phrases/summary`, `normals`.
+- Raster maps come from `https://maps.api.xweather.com/{id}_{secret}/{layers}/{w}x{h}/{lat},{lon},{zoom}/{offset}.png`.
+  `/api/weather/map` validates the layer list against an allow-list before
+  building that URL.
+- `GET /api/weather/diagnostics?p=<place>` calls every endpoint above and reports
+  which ones your key can actually reach — start there when a card is empty.
+- Responses carry both metric and imperial fields (`tempC`/`tempF`,
+  `windSpeedKPH`/`windSpeedMPH`, …), so the unit toggle needs no extra requests.
+
 ## Key Conventions for AI Assistants
 
 1. **Read before writing** — Always read existing files before modifying them
@@ -119,3 +211,5 @@ The API key is read automatically by the `@anthropic-ai/sdk` package from the en
 6. **Test your work** — Run `npm run build` after making changes to verify compilation
 7. **Keep this file updated** — When adding new tools, scripts, or conventions, update CLAUDE.md accordingly
 8. **Respect the stack** — Use Tailwind for styling, App Router conventions for routing, and the Anthropic SDK for AI features
+9. **Never import `src/lib/xweather.ts` from a client component** — it reads the Xweather secret. Client components use `src/lib/weather-format.ts` instead.
+10. **Weather sections degrade, they don't throw** — every Xweather call returns a `Section<T>` (`{ ok, data, error, code }`). Xweather gates data sets by subscription tier, so render a notice for `ok: false` rather than failing the page.

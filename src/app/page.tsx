@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import ImageUploader from "@/components/ImageUploader";
 import PlantResult from "@/components/PlantResult";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -90,6 +91,12 @@ export default function Home() {
         <p className="mt-1 text-sm text-gray-500">
           Snap a photo to identify any plant or flower
         </p>
+        <Link
+          href="/weather"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-white px-3 py-1.5 text-xs font-medium text-green-800 transition hover:bg-green-50"
+        >
+          ⛅ Open the weather dashboard
+        </Link>
       </header>
 
       {/* Main content */}
