@@ -10,6 +10,7 @@ import { RecentPanel } from "@/components/weather/RecentPanel";
 import { WeatherHistoryPanel } from "@/components/weather/WeatherHistoryPanel";
 import { AirSunPanel } from "@/components/weather/AirSunPanel";
 import { MapPanel } from "@/components/weather/MapPanel";
+import { Logo } from "@/components/weather/Logo";
 import { Notice, Skeleton } from "@/components/weather/ui";
 import { relativeFromNow } from "@/lib/weather-format";
 import type { UnitSystem, WeatherOverview } from "@/lib/weather-types";
@@ -189,13 +190,16 @@ export default function WeatherPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 sm:py-8">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Weather
-          </h1>
-          <p className="wx-muted text-xs">
-            Live data from the Vaisala Xweather API
-          </p>
+        <div className="flex items-center gap-3">
+          <Logo size={44} className="shrink-0" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Weather
+            </h1>
+            <p className="wx-muted text-xs">
+              Live data from the Vaisala Xweather API
+            </p>
+          </div>
         </div>
         <Link
           href="/"
