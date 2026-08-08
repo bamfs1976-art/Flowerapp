@@ -15,7 +15,7 @@ import { Logo } from "@/components/weather/Logo";
 import { ErrorBoundary } from "@/components/weather/ErrorBoundary";
 import { Notice, Skeleton } from "@/components/weather/ui";
 import { relativeFromNow } from "@/lib/weather-format";
-import type { UnitSystem, WeatherOverview } from "@/lib/weather-types";
+import type { ThemeName, UnitSystem, WeatherOverview } from "@/lib/weather-types";
 
 const TABS = [
   { id: "now", label: "Now" },
@@ -35,6 +35,7 @@ const STORAGE = {
   favorites: "wx:favorites",
   units: "wx:units",
   hour12: "wx:hour12",
+  theme: "wx:theme",
 } as const;
 
 /*
@@ -53,6 +54,7 @@ export default function WeatherPage() {
   const [favorites, setFavorites] = useState<SavedPlace[]>([]);
   const [units, setUnits] = useState<UnitSystem>("metric");
   const [hour12, setHour12] = useState(false);
+  const [theme, setTheme] = useState<ThemeName>("light");
   const [tab, setTab] = useState<TabId>("now");
 
   const [overview, setOverview] = useState<WeatherOverview | null>(null);
@@ -66,6 +68,9 @@ export default function WeatherPage() {
       const savedUnits = localStorage.getItem(STORAGE.units);
       if (savedUnits === "metric" || savedUnits === "imperial") setUnits(savedUnits);
       setHour12(localStorage.getItem(STORAGE.hour12) === "true");
+      setTheme(
+        document.documentElement.dataset.theme === "dark" ? "dark" : "light"
+      );
 
       const savedFavorites = localStorage.getItem(STORAGE.favorites);
       if (savedFavorites) setFavorites(JSON.parse(savedFavorites) as SavedPlace[]);
@@ -176,6 +181,16 @@ export default function WeatherPage() {
     }
   }, []);
 
+  const changeTheme = useCallback((next: ThemeName) => {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem(STORAGE.theme, next);
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
   const changeHour12 = useCallback((next: boolean) => {
     setHour12(next);
     try {
@@ -218,10 +233,12 @@ export default function WeatherPage() {
         favorites={favorites}
         units={units}
         hour12={hour12}
+        theme={theme}
         loading={loading}
         onSelect={setPlace}
         onUnitsChange={changeUnits}
         onHour12Change={changeHour12}
+        onThemeChange={changeTheme}
         onToggleFavorite={toggleFavorite}
         onRefresh={() => place && load(place)}
         lastUpdated={lastUpdated}
@@ -257,7 +274,12 @@ export default function WeatherPage() {
           >
             <div className="wx-fade">
             {tab === "now" && (
-              <NowPanel overview={overview} units={units} hour12={hour12} />
+              <NowPanel
+                overview={overview}
+                units={units}
+                hour12={hour12}
+                theme={theme}
+              />
             )}
             {tab === "hourly" && (
               <HourlyPanel overview={overview} units={units} hour12={hour12} />
