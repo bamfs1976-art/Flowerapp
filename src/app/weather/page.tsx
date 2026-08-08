@@ -23,7 +23,7 @@ const TABS = [
   { id: "forecast", label: "10-day" },
   { id: "recent", label: "Last 24h" },
   { id: "history", label: "History" },
-  { id: "water", label: "Rivers & Tides" },
+  { id: "water", label: "Rivers & Sea" },
   { id: "air", label: "Air & Sun" },
   { id: "local", label: "Local" },
 ] as const;
