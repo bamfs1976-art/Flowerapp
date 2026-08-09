@@ -212,6 +212,33 @@ notice rather than a crash.
 - Responses carry both metric and imperial fields (`tempC`/`tempF`,
   `windSpeedKPH`/`windSpeedMPH`, …), so the unit toggle needs no extra requests.
 
+## Other open data (no keys)
+
+Every one of these is keyless and Open Government Licence or equivalent, and
+each returns a `Section<T>` like the Xweather calls, so a dead source blanks one
+card and nothing else. All are covered by `/api/weather/diagnostics`.
+
+| Source | Used for | Notes |
+|--------|----------|-------|
+| EA flood-monitoring | flood warnings, river gauges, **tide gauges** | one API, three queries; Welsh gauges belong to NRW |
+| Defra/NRW bathing water | beach classifications | indexed by **National Grid**, not lat/long — see `lib/osgb.ts` |
+| Open-Meteo Marine | sea state | 5 km European grid; nothing inland |
+| Open-Meteo air quality | **pollen** | 11 km CAMS; Europe only, so it returns `warn_no_data` elsewhere |
+
+- **Tides are measurements, not predictions.** The EA gauge reports observed sea
+  level every 15 minutes, so the highs and lows shown have already happened;
+  they are found by smoothing the series and fitting a parabola to each turn
+  (`findTurningPoints`). Predicted tide tables need an Admiralty subscription.
+  The "next high water" line projects forward by the mean lunar interval and is
+  labelled an estimate on the card — do not quietly promote it to a prediction.
+- **`lib/osgb.ts` converts WGS84 to National Grid** because the bathing water
+  service offers no lat/long filter. It is checked against published control
+  points (Greenwich and Ben Nevis, both to within ~10 m); keep that test passing
+  if you touch it.
+- Pollen bands differ per species — birch and alder routinely reach counts that
+  would be extraordinary for grass — so `THRESHOLDS` in `lib/pollen.ts` is a
+  per-species table, not one shared scale.
+
 ## Key Conventions for AI Assistants
 
 1. **Read before writing** — Always read existing files before modifying them
