@@ -762,7 +762,7 @@
 
 .wx-chip-btn {
   flex: 0 0 auto;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 0.75rem;
   border: 1px solid var(--wx-border);
   border-radius: 999px;
@@ -785,6 +785,8 @@
   top: calc(100% + 0.5rem);
   z-index: 50;
   width: 15rem;
+  /* Never wider than the screen allows, whatever it is anchored to. */
+  max-width: calc(100vw - 1.5rem);
   padding: 0.75rem;
   background: var(--wx-surface-strong);
   border: 1px solid var(--wx-border);
@@ -816,7 +818,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  min-height: 36px;
+  /* Inside a popover is still a tap target. */
+  min-height: 44px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -1088,3 +1091,31 @@
   .wx-tile-visual svg { width: 44px; height: 44px; }
   .wx-tile-visual > div { width: 52px !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Second opinion                                                      */
+/* ------------------------------------------------------------------ */
+
+.wx-second-opinion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--wx-surface);
+  border: 1px solid var(--wx-border);
+  border-radius: var(--wx-radius-card);
+  box-shadow: var(--wx-shadow);
+  font-size: 0.875rem;
+}
+
+.wx-so-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--wx-dim);
+}
+
+.wx-so-icon { display: inline-flex; color: var(--wx-solar); }
+.wx-so-temp { font-size: 1.0625rem; font-weight: 600; }
+.wx-so-vs { color: var(--wx-muted); }
