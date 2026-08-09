@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import "./weather.css";
 
 export const metadata: Metadata = {
-  title: "Swansea Weather",
+  /*
+   * Both names in the tab. A middle dot rather than a dash so the two read as
+   * one bilingual title instead of a title and a subtitle.
+   */
+  title: "Swansea Weather · Tywydd Abertawe",
   description:
     "Personal weather dashboard: current conditions, minute-by-minute nowcast, 48-hour and 10-day forecasts, the last 24 hours, historical archives, air quality and radar maps.",
 };
