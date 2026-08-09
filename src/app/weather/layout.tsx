@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./weather.css";
 
 export const metadata: Metadata = {
-  title: "Weather — powered by Vaisala Xweather",
+  title: "Swansea Weather",
   description:
     "Personal weather dashboard: current conditions, minute-by-minute nowcast, 48-hour and 10-day forecasts, the last 24 hours, historical archives, air quality and radar maps.",
 };

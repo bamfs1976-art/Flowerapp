@@ -212,11 +212,21 @@ export default function WeatherPage() {
         <div className="flex items-center gap-3">
           <Logo size={44} className="shrink-0" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Weather
-            </h1>
+            {/*
+              A <p>, not an <h1>: the page's heading is the location in the
+              hero, and two h1s on one page is one too many.
+            */}
+            <p className="wx-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              Swansea Weather
+            </p>
+            {/*
+              The tagline names what the app actually carries now. "Live data
+              from the Vaisala Xweather API" stopped being true once the Met
+              Office, the Environment Agency and Open-Meteo joined it — the
+              per-card attributions credit each source properly.
+            */}
             <p className="wx-muted text-xs">
-              Live data from the Vaisala Xweather API
+              Weather, tides and rivers · Swansea Bay and beyond
             </p>
           </div>
         </div>
