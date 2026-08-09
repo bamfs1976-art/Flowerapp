@@ -156,6 +156,10 @@ User picks a place (search / geolocation / saved chip)
 | `ANTHROPIC_API_KEY` | `/` (plant identifier) | Your Anthropic API key from https://console.anthropic.com/ |
 | `XWEATHER_CLIENT_ID` | `/weather` | Xweather application ID from https://account.xweather.com/ |
 | `XWEATHER_CLIENT_SECRET` | `/weather` | Xweather application secret |
+| `METOFFICE_API_KEY` | `/weather` (optional) | Met Office DataHub site-specific, for the Second opinion card |
+| `METOFFICE_MAP_API_KEY` | `/weather` (optional) | DataHub map images — separate subscription, 1000 images/day |
+| `METOFFICE_OBS_API_KEY` | `/weather` (optional) | DataHub land observations — separate subscription, 360 calls/day |
+| `METOFFICE_ATMO_API_KEY` | `/weather` (optional) | DataHub atmospheric models — read the note below before using |
 
 `ANTHROPIC_API_KEY` is read automatically by the `@anthropic-ai/sdk` package. The
 Xweather pair is read only by `src/lib/xweather.ts`, which runs server-side; the
@@ -211,6 +215,47 @@ notice rather than a crash.
   which ones your key can actually reach — start there when a card is empty.
 - Responses carry both metric and imperial fields (`tempC`/`tempF`,
   `windSpeedKPH`/`windSpeedMPH`, …), so the unit toggle needs no extra requests.
+
+## Met Office comparison
+
+A second forecast beside Xweather rather than instead of it — the DataHub has no
+nowcast, no radar rasters and no archive, which is most of what this app does.
+
+- **The free plan is 360 calls a day**, reset at 00:00 UTC. `getMetOfficeHourly`
+  caches for 30 minutes, so one location costs about 48. Raising that cache is
+  the first thing to check if a `rate_limited` section appears.
+- Values arrive in SI and are converted in `lib/metoffice.ts`: m/s to km/h,
+  pascals to millibars, metres to kilometres. Do not pass raw Met Office numbers
+  to the formatters.
+- `compareForecasts` in `weather-format.ts` matches the two by **absolute
+  instant, not array index** — Xweather stamps carry the location's offset and
+  the Met Office publishes UTC, so index-to-index would compare different times.
+  Anything more than 30 minutes apart is dropped rather than fudged.
+- Without a key the section returns `no_credentials` and the card explains how to
+  switch it on, which is a setup step rather than an error.
+- **Each DataHub product is a separate subscription and key.** Four are in play:
+  site-specific (integrated), map images, land observations, atmospheric models.
+  Only site-specific has a request path that could be established from outside;
+  `lib/metoffice-discovery.ts` asks the other three where they live and
+  `/api/weather/diagnostics` reports the endpoint, identifiers and — for WMTS —
+  the tile template under `metofficeProducts`. **Write each client from that
+  answer.** Do not guess a path: a wrong path and an unsubscribed product both
+  look like "no data", and guessing raster URLs is what took the Xweather map
+  down for five rounds.
+- **The gateway's two 404s are what makes discovery cheap.** "No matching
+  resource found for given API Request" means the product and version matched
+  and only the resource path is wrong; "The requested resource is not available"
+  means there is no such product. So the probe runs in two passes — a nonsense
+  resource under each candidate slug to find the product, then real resources
+  under the slug that answered — and the verdict says which half of the path is
+  still unknown instead of reporting a flat "not found".
+- **Atmospheric models are a poor fit and should probably stay unintegrated.**
+  They deliver gridded GRIB2 against orders placed in the portal; the files run
+  to hundreds of megabytes and GRIB2 decoding is not something a serverless
+  function should attempt. The discovery entry exists so the subscription is
+  visible, not as a step towards using it.
+- Probing costs real quota — land observations allows 360 calls a day — so each
+  product stops at its first success and diagnostics is the only caller.
 
 ## Other open data (no keys)
 
