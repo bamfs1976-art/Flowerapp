@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LeafIcon } from "@/components/weather/icons";
 import Link from "next/link";
 import { LocationBar, type SavedPlace } from "@/components/weather/LocationBar";
 import { TabBar } from "@/components/weather/TabBar";
@@ -240,10 +241,11 @@ export default function WeatherPage() {
         </div>
         <Link
           href="/"
-          className="wx-btn text-sm no-underline"
+          className="wx-btn inline-flex items-center gap-1.5 text-sm no-underline"
           title="Back to the plant identifier"
         >
-          🌿 Flowerapp
+          <LeafIcon className="h-4 w-4" aria-hidden />
+          Flowerapp
         </Link>
       </header>
 

@@ -215,6 +215,19 @@ notice rather than a crash.
   which ones your key can actually reach — start there when a card is empty.
 - Responses carry both metric and imperial fields (`tempC`/`tempF`,
   `windSpeedKPH`/`windSpeedMPH`, …), so the unit toggle needs no extra requests.
+- **Icons are drawn, not typed.** `src/components/weather/icons.tsx` holds the whole set
+  and `ConditionGlyph` picks the weather one from `icon` + `weatherPrimaryCoded`.
+  **No emoji in rendered output** — `Metric.icon` was typed `string`, which
+  could only ever hold an emoji, so emoji survived in six components long after
+  the rest moved over. It is `ReactNode` now. A scan for codepoints above
+  U+1F000 outside comments should come back empty.
+- **`weatherPrimaryCoded` decides the condition, not the icon name.**
+  "pcloudyr" is partly cloudy *with rain* and contains neither "rain" nor
+  "showers". The coded suffixes are Xweather's: `L`/`ZL` drizzle, `RW` showers,
+  `R`/`ZR` rain, `WM` wintry mix, `SC` partly, `BK` mostly, `FW` fair. Twenty-two
+  mappings are covered by a test — check the codes against Xweather's list
+  rather than from memory, which got five of them wrong in one sitting.
+  The plant app at `/` is out of scope for this and keeps its own emoji.
 
 ## Met Office comparison
 
