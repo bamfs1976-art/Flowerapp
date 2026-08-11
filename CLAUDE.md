@@ -215,6 +215,13 @@ notice rather than a crash.
   which ones your key can actually reach — start there when a card is empty.
 - Responses carry both metric and imperial fields (`tempC`/`tempF`,
   `windSpeedKPH`/`windSpeedMPH`, …), so the unit toggle needs no extra requests.
+- **`places/{query}` wants an identifier, not a name.** Coordinates, a
+  postcode, an airport code or "city,state,country" resolve; a bare `Swansea`
+  returns `invalid_location`, and because every other endpoint takes the
+  resolved point, one unresolved place blanks the entire dashboard. `?p=` is
+  what the app writes to the URL and therefore what gets shared, so
+  `resolvePlace` falls back to one `places/search` lookup — the same call the
+  autocomplete already uses — and only when the direct lookup failed.
 - **Icons are drawn, not typed.** `src/components/weather/icons.tsx` holds the whole set
   and `ConditionGlyph` picks the weather one from `icon` + `weatherPrimaryCoded`.
   **No emoji in rendered output** — `Metric.icon` was typed `string`, which

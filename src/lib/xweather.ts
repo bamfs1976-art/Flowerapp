@@ -386,13 +386,38 @@ function formatPlaceName(raw: RawPlace): string {
 export async function resolvePlace(
   location: string
 ): Promise<Section<ResolvedPlace>> {
-  const section = await unwrapFirst(
+  let section = await unwrapFirst(
     xwFetch<RawPlace | RawPlace[]>(
       `places/${encodeURIComponent(location)}`,
       {},
       TTL.places
     )
   );
+
+  /*
+   * `places/{query}` wants an identifier — coordinates, a postcode, an airport
+   * code, or "city,state,country". A bare place name is not one: `?p=Swansea`
+   * returned invalid_location for every endpoint on the dashboard, because the
+   * place never resolved and nothing downstream was even attempted.
+   *
+   * That matters beyond a hand-typed URL. `?p=` is what the app writes when a
+   * place is chosen and therefore what gets shared, and page.tsx feeds the
+   * value straight through. So one search — the same `places/search` this app
+   * already uses for autocomplete, and which answers fine when the lookup does
+   * not — turns a name into an identifier. Only on failure, so a query that
+   * already resolves still costs exactly one request.
+   */
+  if (!section.ok && section.code === "invalid_location") {
+    const search = await unwrapFirst(
+      xwFetch<RawPlace | RawPlace[]>(
+        "places/search",
+        { query: `name:^${location.trim().toLowerCase()}`, limit: "1" },
+        TTL.places
+      )
+    );
+    if (search.ok && search.data) section = search;
+  }
+
   if (!section.ok || !section.data) {
     return { ok: false, data: null, error: section.error, code: section.code };
   }
@@ -803,7 +828,7 @@ export async function probeMapStack(
  * Layer codes cannot be verified from source — they depend on what an
  * account's plan serves, and guessing them has now cost two rounds of
  * blind fixes. This asks the service directly, one tiny image per layer, so
- * The diagnostics route can report exactly which codes work for this key.
+ * /api/diagnostics can report exactly which codes work for this key.
  */
 export async function probeMapLayer(
   layer: string,
