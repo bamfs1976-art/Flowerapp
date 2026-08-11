@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LeafIcon } from "@/components/weather/icons";
 import Link from "next/link";
 import { LocationBar, type SavedPlace } from "@/components/weather/LocationBar";
 import { TabBar } from "@/components/weather/TabBar";
@@ -50,6 +49,31 @@ const FALLBACK_PLACE: SavedPlace = {
   query: "51.6656,-3.9333",
   label: "Morriston, Swansea",
 };
+
+/*
+ * Defined here rather than in components/weather/icons.tsx because it belongs
+ * to Flowerapp's shell, not to the weather app: it is the cross-link back to
+ * the plant identifier, which the standalone weather repo does not have. Kept
+ * out of the shared icon set so syncing that file cannot delete it.
+ */
+function LeafIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4.6 19.4C3.2 14 6.4 6.6 19.4 4.6c1.4 7.6-2.6 15.6-11.2 15-2 0-3.2-.1-3.6-.2Z" />
+      <path d="M9 15.4c1.6-3 4.4-5.6 8-7" />
+    </svg>
+  );
+}
 
 export default function WeatherPage() {
   const [place, setPlace] = useState<SavedPlace | null>(null);

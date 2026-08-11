@@ -250,14 +250,6 @@ export const ListIcon = (p: IconProps) => (
   </Svg>
 );
 
-/** The cross-link back to the plant identifier, which shares this shell. */
-export const LeafIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <path d="M4.6 19.4C3.2 14 6.4 6.6 19.4 4.6c1.4 7.6-2.6 15.6-11.2 15-2 0-3.2-.1-3.6-.2Z" />
-    <path d="M9 15.4c1.6-3 4.4-5.6 8-7" />
-  </Svg>
-);
-
 /** A duration rather than a clock time. */
 export const ClockIcon = (p: IconProps) => (
   <Svg {...p}>
