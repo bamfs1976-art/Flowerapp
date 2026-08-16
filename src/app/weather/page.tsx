@@ -10,6 +10,7 @@ import { ForecastPanel } from "@/components/weather/ForecastPanel";
 import { RecentPanel } from "@/components/weather/RecentPanel";
 import { WeatherHistoryPanel } from "@/components/weather/WeatherHistoryPanel";
 import { AirSunPanel } from "@/components/weather/AirSunPanel";
+import { MetOfficePanel } from "@/components/weather/MetOfficePanel";
 import { WaterPanel } from "@/components/weather/WaterPanel";
 import { LocalPanel } from "@/components/weather/LocalPanel";
 import { Logo } from "@/components/weather/Logo";
@@ -26,6 +27,7 @@ const TABS = [
   { id: "history", label: "History" },
   { id: "water", label: "Rivers & Sea" },
   { id: "air", label: "Air & Sun" },
+  { id: "metoffice", label: "Met Office" },
   { id: "local", label: "Local" },
 ] as const;
 
@@ -348,6 +350,9 @@ export default function WeatherPage() {
             )}
             {tab === "air" && (
               <AirSunPanel overview={overview} units={units} hour12={hour12} />
+            )}
+            {tab === "metoffice" && (
+              <MetOfficePanel overview={overview} units={units} hour12={hour12} />
             )}
             {tab === "local" && place && (
               <LocalPanel placeQuery={place.query} hour12={hour12} />
