@@ -228,7 +228,18 @@ notice rather than a crash.
   could only ever hold an emoji, so emoji survived in six components long after
   the rest moved over. It is `ReactNode` now. A scan for codepoints above
   U+1F000 outside comments should come back empty.
-- **`weatherPrimaryCoded` decides the condition, not the icon name.**
+- **"Next rain" trusts the probability, not the label.** An hour whose
+  `weatherPrimary` matched /shower/ used to qualify whatever the numbers said,
+  so a 10% chance of 0.0 mm produced "Rain Showers likely" directly above a
+  nowcast reading "no precipitation expected in the next 60 minutes". When a
+  `pop` is published it decides; the label is only a fallback for when it is not.
+- **Forecast arrays are filtered to what has not already finished.**
+  `nextPrecipitation` searched from index 0 and could return a period that had
+  been and gone — live, on a Sunday morning, "Rain Showers likely in about 0
+  hours / From Fri 17:00". `minutesUntil` clamped at zero, which is what turned
+  an impossible answer into a plausible-looking one; it is signed now, and the
+  search skips anything whose period has ended. It takes a `now` option so
+  those cases are testable.- **`weatherPrimaryCoded` decides the condition, not the icon name.**
   "pcloudyr" is partly cloudy *with rain* and contains neither "rain" nor
   "showers". The coded suffixes are Xweather's: `L`/`ZL` drizzle, `RW` showers,
   `R`/`ZR` rain, `WM` wintry mix, `SC` partly, `BK` mostly, `FW` fair. Twenty-two
