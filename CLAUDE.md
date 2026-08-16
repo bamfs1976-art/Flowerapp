@@ -41,6 +41,9 @@ Flowerapp/
     │           ├── overview/route.ts   # Everything for the dashboard, one call
     │           ├── history/route.ts    # Daily summaries + normals for a range
     │           ├── archive/route.ts    # One past day, hour by hour
+    │           ├── climate/route.ts    # ERA5 record for this month — own route, big payload
+    │           ├── water/route.ts      # Rivers, tides, floods, sea state
+    │           ├── local/route.ts      # Non-weather local sources
     │           ├── search/route.ts     # Place autocomplete
     │           ├── map/route.ts        # Raster map proxy (keeps the key server-side)
     │           └── diagnostics/route.ts # Which Xweather endpoints your key unlocks
@@ -58,14 +61,34 @@ Flowerapp/
     │       ├── ForecastPanel.tsx       # 10-day + day/night forecast
     │       ├── RecentPanel.tsx         # Trailing 24 hours
     │       ├── WeatherHistoryPanel.tsx # Archive explorer
-    │       ├── AirSunPanel.tsx         # Air quality + sun/moon
+    │       ├── ClimateCard.tsx         # This month against the record (fetches itself)
+    │       ├── ModelSpreadCard.tsx     # How much four models agree
+    │       ├── EnsembleCard.tsx        # One model run many times = a probability
+    │       ├── MetOfficePanel.tsx      # The dedicated Met Office tab
+    │       ├── WarningBanner.tsx       # Severe weather warnings, above everything
+    │       ├── WaterPanel.tsx          # Rivers, tides, floods, sea state
+    │       ├── AirSunPanel.tsx         # Air quality + sun/moon + aurora
     │       └── MapPanel.tsx            # Raster map with layer picker
     └── lib/
         ├── types.ts                   # Plant identification types
         ├── weather-types.ts           # Xweather response types
         ├── xweather.ts                # SERVER-ONLY Xweather API client
+        ├── warnings.ts                # MeteoAlarm CAP, falling back to NSWWS RSS
+        ├── ensemble.ts                # Open-Meteo ensemble percentiles
+        ├── climate.ts                 # ERA5 reanalysis back to 1940
         └── weather-format.ts          # Client-safe formatting helpers
 ```
+
+The weather app is developed in a standalone repo and synced in with
+`scripts/sync-weather.sh`. The two trees are identical apart from placement:
+here the routes sit under `/api/weather/*` and the components under
+`src/components/weather/*`, so the script rewrites the API paths and the
+`@/components/*` sibling imports on the way in. **Use it rather than copying by
+hand** — copying verbatim once left the Local, Water, History and Archive
+panels fetching `/api/local`, `/api/water`, `/api/history` and `/api/archive`,
+none of which exist here. They 404ed and the cards sat empty, which looks
+exactly like an upstream being down. The script re-runs safely and fails if any
+path escapes the rewrite.
 
 ## Getting Started
 
@@ -312,17 +335,30 @@ nowcast, no radar rasters and no archive, which is most of what this app does.
 
 ## Keyless sources added beside the paid ones
 
-Four more upstreams, none of which needs a key or registration. All return
-`Section<T>`, all are in `/api/weather/overview`, all report through `/api/weather/diagnostics`.
+Six more upstreams, none of which needs a key or registration. All return
+`Section<T>`, all report through `/api/weather/diagnostics`. All but ERA5 are in
+`/api/weather/overview`.
 
 | Source | Card | Notes |
 |--------|------|-------|
-| Met Office NSWWS warnings | banner on **Now** | regional RSS; see the caveat below |
+| MeteoAlarm CAP / Met Office NSWWS | banner on **Now** | CAP first, RSS as fallback; see below |
 | MET Norway Locationforecast | third box in Second opinion | User-Agent is required by their terms |
 | Open-Meteo per-model | **Model agreement** on 10-day | one request per model, on purpose |
+| Open-Meteo ensemble | **How certain is it?** on 10-day | probability as a member count |
+| Open-Meteo ERA5 archive | **Against the record** on History | own route — the payload is ~⅓ MB |
 | AuroraWatch UK | card on Air & Sun | national measurement, not a local forecast |
 
-- **The warnings feed is a public cache, not an API.**
+- **Warnings prefer MeteoAlarm's CAP feed and fall back to the RSS.** CAP
+  publishes `cap:severity` as a controlled vocabulary — Extreme/Severe → red,
+  Moderate → amber, Minor → yellow — so the level is *read* rather than guessed
+  out of the title, and `cap:onset`/`cap:expires` give a real validity window.
+  `fromMeteoAlarm()` returns `null` rather than a failed Section precisely so a
+  bad day at MeteoAlarm falls through to the RSS instead of blanking the banner;
+  `via` records which one answered and diagnostics reports it. Entries are
+  filtered by `cap:areaDesc` against the region name, and **an entry with no
+  area at all is kept** — UK-wide warnings carry no area, and dropping them
+  would discard the most important ones.
+- **The RSS fallback is a public cache, not an API.**
   `…/PWSCache/WarningsRSS/Region/{id}` is what Home Assistant and
   MMM-UKMOWeatherWarnings read, so it is well-trodden, but it has no
   machine-readable severity field — the level is parsed out of the title — and
@@ -350,6 +386,32 @@ Four more upstreams, none of which needs a key or registration. All return
 - **Spread measures agreement, not accuracy.** Models can agree and be wrong
   together. The card says so; do not quietly reframe it as confidence in the
   forecast being right.
+- **The ensemble is the honest version of that, and the two cards are not
+  duplicates.** Model agreement compares four models that each ran once, so its
+  spread is an *inference* about confidence. The ensemble is one model run
+  dozens of times from perturbed starting states, so "40% chance of rain" is
+  literally the share of runs that produced ≥ 0.1 mm and the shaded band is
+  where eight runs in ten land. Keep the wording on each card distinct.
+- **Count the members, never assume them.** `memberSeries()` counts
+  `…_memberNN` keys in the response rather than hard-coding 51: the member count
+  differs per model and Open-Meteo can trim it. A response with fewer than three
+  members is rejected rather than presented as a percentile.
+- **`ENSEMBLES` is an ordered candidate list and the first that answers wins**,
+  same reasoning as `MODELS` — an identifier that cannot be verified from the
+  build environment should cost only itself.
+- **ERA5 is reanalysis, not observation.** A model run backwards over the
+  historical record for the grid square. Excellent for "is this month unusual",
+  but a "record" here is not one the Met Office would publish, and the card
+  carries that caveat explicitly — do not remove it or soften it to "records".
+- **ERA5 lags real time by about a week**, so `getClimateContext` ends its range
+  at now − 7 days and reports `lastDayISO` rather than implying it is current.
+- **Only complete years are ranked.** A half-finished August compared against 85
+  finished ones would rank on partial data — `year < thisYear` is the filter,
+  and `yearsCompared` is what the card shows so the denominator is visible.
+- **`/api/weather/climate` is its own route on purpose.** The archive response
+  is eighty years of daily values, around a third of a megabyte; folding it into
+  `/api/weather/overview` would put that on the critical path for every location
+  change to serve one card on a tab most visits never open.
 - **AuroraWatch ask for three minutes between requests**; the cache is ten.
 
 ## The Met Office tab
@@ -456,3 +518,20 @@ card and nothing else. All are covered by `/api/weather/diagnostics`.
 8. **Respect the stack** — Use Tailwind for styling, App Router conventions for routing, and the Anthropic SDK for AI features
 9. **Never import `src/lib/xweather.ts` from a client component** — it reads the Xweather secret. Client components use `src/lib/weather-format.ts` instead.
 10. **Weather sections degrade, they don't throw** — every Xweather call returns a `Section<T>` (`{ ok, data, error, code }`). Xweather gates data sets by subscription tier, so render a notice for `ok: false` rather than failing the page.
+11. **A section may be absent as well as failed, and the types say so.** The
+    section maps on `WeatherOverview`, `HistoryPayload` and `ArchiveDayPayload`
+    are `Partial`, because each payload is JSON parsed off the wire and cast:
+    declaring a section non-optional asserts a guarantee the response cannot
+    make, and a route deployed before a section existed simply will not carry
+    it. Three times a component read `.ok` off an absent section and took its
+    whole tab down — the pollen card, the warnings banner, the station
+    summaries. So **reach a section through `?.`**, or hand it to
+    `SectionBody`, which already accepts `undefined`. The producing side keeps
+    the stronger guarantee: the routes annotate what they build with
+    `satisfies OverviewSections` (and the `History`/`Archive` equivalents), so
+    adding a section to the interface fails the build until the route supplies
+    it. This is the same failure mode as `Metric.icon` being typed `string` —
+    when a type promises more than the value can, the compiler stops helping.
+12. **Sync the weather app, don't hand-copy it** — `scripts/sync-weather.sh`
+    rewrites the API paths and sibling imports that differ between the two
+    trees. See the note under Repository Structure.

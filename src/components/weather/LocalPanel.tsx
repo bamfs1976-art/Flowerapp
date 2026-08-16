@@ -46,7 +46,7 @@ export function LocalPanel({
     setError(null);
     try {
       const res = await fetchWithTimeout(
-        `/api/local?p=${encodeURIComponent(placeQuery)}`
+        `/api/weather/local?p=${encodeURIComponent(placeQuery)}`
       );
       const payload = await res.json();
       if (!res.ok) throw new Error(payload.error ?? "Could not load local data.");

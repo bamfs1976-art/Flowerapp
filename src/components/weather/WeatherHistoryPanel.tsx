@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, Metric, Notice, SectionBody, Skeleton } from "./ui";
 import { SeriesChart } from "./Chart";
+import { ClimateCard } from "./ClimateCard";
 import { CloudRainIcon, ConditionGlyph, MoonPhaseIcon, SunriseIcon, SunsetIcon, ThermometerHighIcon, ThermometerLowIcon, WindIcon } from "./icons";
 import {
   dash,
@@ -68,7 +69,7 @@ export function WeatherHistoryPanel({
       setError(null);
       try {
         const res = await fetch(
-          `/api/history?p=${encodeURIComponent(placeQuery)}&from=${rangeFrom}&to=${rangeTo}`
+          `/api/weather/history?p=${encodeURIComponent(placeQuery)}&from=${rangeFrom}&to=${rangeTo}`
         );
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error ?? "Could not load history.");
@@ -104,7 +105,7 @@ export function WeatherHistoryPanel({
       setDayLoading(true);
       try {
         const res = await fetch(
-          `/api/archive?p=${encodeURIComponent(placeQuery)}&date=${date}`
+          `/api/weather/archive?p=${encodeURIComponent(placeQuery)}&date=${date}`
         );
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error ?? "Could not load that day.");
@@ -118,11 +119,12 @@ export function WeatherHistoryPanel({
     [placeQuery, selectedDate]
   );
 
-  const summaries = data?.sections.dailySummaries.data?.periods ?? [];
-  const normals = data?.sections.normals.data?.periods ?? [];
+  const summaries = data?.sections.dailySummaries?.data?.periods ?? [];
+  const normals = data?.sections.normals?.data?.periods ?? [];
 
   return (
     <div className="space-y-4">
+      <ClimateCard placeQuery={placeQuery} />
       <Card
         title="Historical weather"
         subtitle="Daily summaries from the Xweather archive — data goes back to 2001"
@@ -413,7 +415,7 @@ export function WeatherHistoryPanel({
             </Card>
           )}
 
-          {data.sections.stationSummaries.ok &&
+          {data.sections.stationSummaries?.ok &&
             (data.sections.stationSummaries.data?.periods?.length ?? 0) > 0 && (
               <Card
                 title="Station-reported summaries"
@@ -569,8 +571,8 @@ function ArchiveDay({
   units: UnitSystem;
   hour12: boolean;
 }) {
-  const hourly = day.sections.hourly.data?.periods ?? [];
-  const sun = day.sections.sunMoon.data;
+  const hourly = day.sections.hourly?.data?.periods ?? [];
+  const sun = day.sections.sunMoon?.data;
 
   return (
     <div className="space-y-4">
@@ -678,7 +680,7 @@ function ArchiveDay({
         </table>
       </div>
 
-      {day.sections.observations.ok &&
+      {day.sections.observations?.ok &&
         (day.sections.observations.data?.periods?.length ?? 0) > 0 && (
           <p className="wx-dim text-xs">
             {day.sections.observations.data?.periods?.length} raw station
