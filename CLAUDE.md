@@ -366,6 +366,17 @@ Six more upstreams, none of which needs a key or registration. All return
   `none-for-region`. **A status and a connection failure are not the same
   finding** — a 404 means the feed moved and the URL is fixable, a `network`
   means egress is blocked and no URL will help.
+- **MeteoAlarm needs a permissive `Accept`, and 406 was how it said so.**
+  Production reported `http-406` — Not Acceptable — against
+  `application/atom+xml, application/xml, text/xml`. That status is
+  unambiguous: the URL exists and egress works, and content negotiation was
+  what refused us, not the address. Sending `Accept: */*` is the fix, and it
+  costs nothing because the body is sniffed for feed markup regardless. **Do
+  not narrow this header again.**
+- **Report every candidate's outcome, not just the last.** The first version of
+  the loop overwrote `reason` each pass, so a run reporting `http-406` gave no
+  way to tell whether the other feeds agreed or failed differently. The reasons
+  are joined (`"http-406; http-404; network"`) when all candidates fail.
 - **`METEOALARM_FEEDS` is an ordered candidate list, first that answers wins**,
   the same reasoning as `MODELS` and `ENSEMBLES`. `capFeed` reports which one
   answered — keep that one and delete any entry permanently reported `http-404`.
